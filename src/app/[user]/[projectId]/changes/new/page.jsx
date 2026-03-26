@@ -1,46 +1,45 @@
 import Link from "next/link";
 import NewChangeClient from "./NewChangeClient";
 import { ArrowLeft } from "lucide-react";
+import { getProjectModulesForImpact } from "@/lib/actions/projects";
+import { initDb } from "@/db/index";
+import { eq } from "drizzle-orm";
+import * as schema from "@/db/schema";
 
 export default async function NewChangePage({ params }) {
   const { user, projectId } = await params;
 
-  // Mock active baseline
-  const activeBaseline = { id: "baseline-001", versionLabel: "v1.0" };
+  // Fetch modules with impact/dependent relationships for the change form
+  const modulesResult = await getProjectModulesForImpact(projectId);
+  const modules = modulesResult.error ? [] : modulesResult.data || [];
 
-  // Mock modules from proj-001
-  const modules = [
-    {
-      id: 1,
-      name: "Authentication & Authorization",
-      moduleId: "M-Auth",
-      techStack: "Next.js, JWT, bcrypt",
-    },
-    {
-      id: 2,
-      name: "Payment Gateway Integration",
-      moduleId: "M-Pay",
-      techStack: "Stripe, Node.js, Webhook",
-    },
-    {
-      id: 3,
-      name: "Analytics Dashboard",
-      moduleId: "M-Analytics",
-      techStack: "React, D3.js, PostgreSQL",
-    },
-    {
-      id: 4,
-      name: "Data Export Engine",
-      moduleId: "M-Export",
-      techStack: "Node.js, Excel.js, Queue",
-    },
-    {
-      id: 5,
-      name: "Email Notification Service",
-      moduleId: "M-Email",
-      techStack: "SendGrid, Node.js, Queue",
-    },
-  ];
+  // Fetch the active baseline for this project
+  let activeBaseline = null;
+  try {
+    const conn = await initDb();
+    if (conn) {
+      const project = await conn.query.projects.findFirst({
+        where: eq(schema.projects.customId, projectId),
+      });
+
+      if (project) {
+        const baseline = await conn.query.baselines.findFirst({
+          where: eq(schema.baselines.projectId, project.id),
+          orderBy: (baselines, { desc }) => [desc(baselines.id)],
+        });
+
+        if (baseline) {
+          activeBaseline = {
+            id: baseline.id,
+            versionLabel: baseline.versionLabel,
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching baseline:", err);
+    // Continue without baseline if fetch fails
+  }
 
   return (
     <div className="space-y-6">

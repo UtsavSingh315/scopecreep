@@ -8,7 +8,13 @@ import { cookies } from "next/headers";
 
 const SALT_ROUNDS = 10;
 const { hash, compare } = bcryptjs;
-export async function registerUser(email, password, fullName, username, mobileNo) {
+export async function registerUser(
+  email,
+  password,
+  fullName,
+  username,
+  mobileNo,
+) {
   try {
     const db = await initDb();
 
@@ -101,21 +107,27 @@ export async function loginUser(email, password) {
 
     // Set session cookie (in real app, use proper session management)
     const cookieStore = await cookies();
-    cookieStore.set("userId", user.id.toString(), {
+    await cookieStore.set({
+      name: "userId",
+      value: user.id.toString(),
       maxAge: 60 * 60 * 24 * 7, // 7 days
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       sameSite: "lax",
     });
 
-    cookieStore.set("userEmail", user.email, {
+    await cookieStore.set({
+      name: "userEmail",
+      value: user.email,
       maxAge: 60 * 60 * 24 * 7,
       secure: process.env.NODE_ENV === "production",
       httpOnly: false,
       sameSite: "lax",
     });
 
-    cookieStore.set("username", user.username, {
+    await cookieStore.set({
+      name: "username",
+      value: user.username,
       maxAge: 60 * 60 * 24 * 7,
       secure: process.env.NODE_ENV === "production",
       httpOnly: false,
@@ -140,9 +152,9 @@ export async function loginUser(email, password) {
 export async function logoutUser() {
   try {
     const cookieStore = await cookies();
-    cookieStore.delete("userId");
-    cookieStore.delete("userEmail");
-    cookieStore.delete("username");
+    await cookieStore.delete("userId");
+    await cookieStore.delete("userEmail");
+    await cookieStore.delete("username");
     return { success: true };
   } catch (error) {
     console.error("Logout error:", error);

@@ -37,7 +37,7 @@ const SLIDER_LABELS = {
   stakeholder_priority: "Stakeholder Priority",
   resource_availability: "Resource Availability",
   architecture_impact: "Architecture Impact",
-  dependency_depth: "Dependency Depth",
+  dependency_depth: "Requirement Ambiguity",
   revenue_roi: "Revenue ROI",
 };
 
@@ -47,6 +47,151 @@ const NUMERIC_LABELS = {
   db_schema_changes: "DB Schema Changes",
   logic_rules: "Business Logic Rules",
 };
+
+// Define which sliders are "bad when increased" (higher value = worse)
+// and which are "bad when decreased" (lower value = worse)
+const SLIDER_POLARITY = {
+  technical_complexity: "bad_when_increased", // Higher = worse
+  stakeholder_priority: "bad_when_increased", // Higher = worse
+  resource_availability: "bad_when_decreased", // Lower = worse
+  architecture_impact: "bad_when_increased", // Higher = worse
+  dependency_depth: "bad_when_increased", // Higher = worse
+  revenue_roi: "bad_when_increased", // Higher = worse (opportunity cost)
+};
+
+function getSliderGradientClass(key, value) {
+  const polarity = SLIDER_POLARITY[key];
+  const percentage = (value / 10) * 100;
+
+  if (polarity === "bad_when_increased") {
+    // Green at low, Red at high (no purple)
+    // Use: linear-gradient(to right, green, red)
+    return {
+      background: `linear-gradient(to right, rgb(34, 197, 94) 0%, rgb(239, 68, 68) 100%)`,
+      backgroundSize: "100% 100%",
+    };
+  } else if (polarity === "bad_when_decreased") {
+    // Red at low, Green at high (no purple)
+    // Use: linear-gradient(to right, red, green)
+    return {
+      background: `linear-gradient(to right, rgb(239, 68, 68) 0%, rgb(34, 197, 94) 100%)`,
+      backgroundSize: "100% 100%",
+    };
+  }
+
+  return {};
+}
+
+/**
+ * Recursive component to render module dependency tree (hierarchical levels)
+ */
+function DependencyTreeNode({
+  moduleId,
+  modules,
+  visited = new Set(),
+  depth = 0,
+}) {
+  const module = modules.find((m) => m.id === moduleId);
+  const isCircular = visited.has(moduleId);
+  const newVisited = new Set(visited);
+  newVisited.add(moduleId);
+
+  if (!module) return null;
+
+  // Get only the direct dependents (not transitive)
+  let deps = module.dependencyList || [];
+
+  // Deduplicate deps by ID
+  deps = Array.from(new Map(deps.map((d) => [d.id, d])).values());
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <div
+          className={`w-3 h-3 rounded-full ${isCircular ? "bg-red-500" : "bg-green-500"}`}></div>
+        <span
+          className={`text-sm font-medium ${isCircular ? "text-red-600 dark:text-red-400 line-through" : "text-slate-700 dark:text-slate-300"}`}>
+          {module.name}
+          {isCircular && (
+            <span className="ml-2 text-xs text-red-600 dark:text-red-400">
+              (circular)
+            </span>
+          )}
+        </span>
+      </div>
+
+      {!isCircular && depth < 3 && deps.length > 0 && (
+        <div className="border-l-2 border-slate-300 dark:border-slate-600 pl-3 ml-1">
+          {deps.map((dep) => (
+            <DependencyTreeNode
+              key={dep.id}
+              moduleId={dep.id}
+              modules={modules}
+              visited={newVisited}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Shows the dependency tree for a selected module
+ */
+function DependencyTree({ modules, selectedModuleId }) {
+  const selectedModule = modules.find((m) => m.id === selectedModuleId);
+
+  if (!selectedModule) return null;
+
+  const dependents = selectedModule.dependencyList || [];
+
+  // Deduplicate dependents by ID in case there are duplicates
+  const uniqueDependents = Array.from(
+    new Map(dependents.map((d) => [d.id, d])).values(),
+  );
+
+  const dependencyCount = uniqueDependents.length;
+
+  return (
+    <div className="text-sm">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+        <span className="font-semibold text-slate-800 dark:text-slate-200">
+          {selectedModule.name}
+        </span>
+      </div>
+
+      {dependencyCount === 0 ? (
+        <p className="text-xs text-slate-600 dark:text-slate-400 italic">
+          No dependencies
+        </p>
+      ) : (
+        <div className="space-y-1 ml-4">
+          {uniqueDependents.map((dep) => (
+            <DependencyTreeNode
+              key={dep.id}
+              moduleId={dep.id}
+              modules={modules}
+              visited={new Set([selectedModuleId])}
+              depth={0}
+            />
+          ))}
+        </div>
+      )}
+
+      {dependencyCount > 0 && (
+        <div className="mt-3 p-2 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+          <p className="text-xs text-amber-900 dark:text-amber-300">
+            <strong>Impact:</strong> Changes to this module may affect{" "}
+            {dependencyCount} dependent module{dependencyCount !== 1 ? "s" : ""}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function NewChangeClient({
   activeBaseline,
@@ -82,7 +227,10 @@ export default function NewChangeClient({
     let score = 0;
 
     Object.keys(sliders).forEach((key) => {
-      score += sliders[key] * 10 * SCORING_WEIGHTS.sliders[key];
+      // Resource Availability is inverse: higher availability = lower score (better)
+      const val =
+        key === "resource_availability" ? 10 - sliders[key] : sliders[key];
+      score += val * 10 * SCORING_WEIGHTS.sliders[key];
     });
 
     Object.keys(numerics).forEach((key) => {
@@ -90,8 +238,21 @@ export default function NewChangeClient({
       score += severity * 10 * SCORING_WEIGHTS.numerics[key];
     });
 
+    // Add dependency impact to score based on selected module
+    if (selectedModule) {
+      const selectedModuleData = modules?.find(
+        (m) => m.id === parseInt(selectedModule),
+      );
+      const dependencyCount = selectedModuleData?.dependencyList?.length || 0;
+
+      // Each dependent module adds 5 points to impact score
+      // This makes changes to heavily depended-upon modules have higher impact
+      const dependencyImpact = Math.min(dependencyCount * 5, 50); // Cap at 50 points
+      score += dependencyImpact;
+    }
+
     setLiveScore(Math.round(score));
-  }, [sliders, numerics]);
+  }, [sliders, numerics, selectedModule, modules]);
 
   const handleSliderChange = (key, value) => {
     setSliders((prev) => ({ ...prev, [key]: parseInt(value) }));
@@ -138,8 +299,8 @@ export default function NewChangeClient({
       });
 
       if (result?.changeRequest?.id) {
-        // Success - redirect to impacts page to show results
-        router.push(`/${user}/${projectId}/impacts`);
+        // Success - redirect to changes page to show the newly created change
+        router.push(`/${user}/${projectId}/changes`);
       } else {
         throw new Error("Failed to submit change request");
       }
@@ -156,6 +317,58 @@ export default function NewChangeClient({
 
   return (
     <div className="space-y-6">
+      <style>{`
+        input[type="range"] {
+          -webkit-appearance: none;
+          width: 100%;
+          height: 0.5rem;
+          border-radius: 0.5rem;
+          outline: none;
+          cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 1.25rem;
+          height: 1.25rem;
+          border-radius: 50%;
+          background: white;
+          border: 2px solid #3b82f6;
+          cursor: pointer;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+          width: 1.25rem;
+          height: 1.25rem;
+          border-radius: 50%;
+          background: white;
+          border: 2px solid #3b82f6;
+          cursor: pointer;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type="range"]::-moz-range-track {
+          background: transparent;
+          border: none;
+        }
+
+        input[type="range"]::-moz-range-progress {
+          background-color: transparent;
+        }
+
+        .dark input[type="range"]::-webkit-slider-thumb {
+          background: #1e293b;
+          border-color: #60a5fa;
+        }
+
+        .dark input[type="range"]::-moz-range-thumb {
+          background: #1e293b;
+          border-color: #60a5fa;
+        }
+      `}</style>
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Form Inputs */}
@@ -185,6 +398,19 @@ export default function NewChangeClient({
                     ))}
                   </select>
                 </div>
+
+                {/* Module Dependency Tree */}
+                {selectedModule && (
+                  <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                    <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-3">
+                      Module Dependency Tree
+                    </h3>
+                    <DependencyTree
+                      modules={modules}
+                      selectedModuleId={parseInt(selectedModule)}
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
@@ -225,6 +451,7 @@ export default function NewChangeClient({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {Object.entries(sliders).map(([key, value]) => {
                   const weight = SCORING_WEIGHTS.sliders[key];
+                  const gradientStyle = getSliderGradientClass(key, value);
                   return (
                     <div key={key}>
                       <div className="flex items-center justify-between mb-2">
@@ -243,7 +470,8 @@ export default function NewChangeClient({
                         onChange={(e) =>
                           handleSliderChange(key, e.target.value)
                         }
-                        className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-slate-200 dark:bg-slate-700 accent-blue-600"
+                        style={gradientStyle}
+                        className="w-full h-2 rounded-lg appearance-none cursor-pointer"
                       />
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         Weight: {(weight * 100).toFixed(0)}%

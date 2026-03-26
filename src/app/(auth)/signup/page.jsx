@@ -77,7 +77,13 @@ export default function SignupPage() {
 
     setIsLoading(true);
     try {
-      const result = await registerUser(email, password, fullName, username, mobileNo);
+      const result = await registerUser(
+        email,
+        password,
+        fullName,
+        username,
+        mobileNo,
+      );
 
       if (result.error) {
         setError(result.error);
@@ -196,7 +202,9 @@ export default function SignupPage() {
                     className="h-11"
                     type="tel"
                     value={mobileNo}
-                    onChange={(e) => setMobileNo(e.target.value.replace(/[^\d]/g, ""))}
+                    onChange={(e) =>
+                      setMobileNo(e.target.value.replace(/[^\d]/g, ""))
+                    }
                     disabled={isLoading}
                     maxLength="10"
                   />

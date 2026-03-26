@@ -2,71 +2,98 @@
 
 import { useEffect, useState } from "react";
 import { Package, Zap, Clock } from "lucide-react";
-
-const complexityColors = {
-  Low: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400",
-  Medium:
-    "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
-  High: "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400",
-};
+import { createModule } from "@/lib/actions/projects";
 
 export default function ModulesClient({ initialModules = [], projectId }) {
   const [modules, setModules] = useState(initialModules || []);
   const [name, setName] = useState("");
   const [techStack, setTechStack] = useState("");
-  const [complexity, setComplexity] = useState("Medium");
-  const [deps, setDeps] = useState([]);
+  const [deps, setDeps] = useState([]); // Array of {id, type}
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     setModules(initialModules || []);
   }, [initialModules]);
 
   function toggleDep(id) {
-    setDeps((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
+    setDeps((d) => {
+      const existing = d.find((x) => x.id === id);
+      if (existing) {
+        return d.filter((x) => x.id !== id);
+      } else {
+        return [...d, { id, type: "Hard" }]; // Default to Hard
+      }
+    });
+  }
+
+  function updateDepType(id, type) {
+    setDeps((d) => d.map((dep) => (dep.id === id ? { ...dep, type } : dep)));
   }
 
   async function handleCreate(e) {
     e.preventDefault();
-    const payload = { name, techStack, complexity, dependencies: deps };
+    setIsCreating(true);
 
     try {
-      const user = window.location.pathname.split("/").filter(Boolean)[0];
-      const res = await fetch(
-        `/api/projects/${encodeURIComponent(user)}/${projectId}/modules`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
-      const j = await res.json();
-      if (j.ok) {
-        const newModule = {
-          id: Date.now(),
-          name,
-          techStack,
-          complexity,
-          moduleId: `M-${name.split(" ")[0]}`,
-          projectId,
-          dependencies: deps,
-          estimatedDays: 10,
-        };
+      const result = await createModule(projectId, {
+        name,
+        techStack,
+        dependencies: deps,
+      });
+
+      if (result.error) {
+        console.error("Failed to create module:", result.error);
+        alert("Failed to create module: " + result.error);
+        setIsCreating(false);
+        return;
+      }
+
+      if (result.success && result.data) {
+        const newModule = result.data;
         setModules((m) => [newModule, ...m]);
         setName("");
         setTechStack("");
-        setComplexity("Medium");
         setDeps([]);
       } else {
-        alert("Create failed: " + j.error);
+        alert("Failed to create module");
       }
     } catch (err) {
-      console.error(err);
-      alert("Failed to create module");
+      console.error("Error creating module:", err);
+      alert("Failed to create module: " + (err.message || "Unknown error"));
+    } finally {
+      setIsCreating(false);
     }
   }
 
   return (
     <div className="space-y-6">
+      {/* Dependency Type Legend */}
+      <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700">
+        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+          Dependency Types:
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded bg-red-500"></div>
+            <span className="text-xs text-slate-600 dark:text-slate-400">
+              Hard (Critical)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded bg-amber-500"></div>
+            <span className="text-xs text-slate-600 dark:text-slate-400">
+              Soft (Flexible)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded bg-slate-400"></div>
+            <span className="text-xs text-slate-600 dark:text-slate-400">
+              Ghost (Indirect)
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Modules Grid */}
       <div>
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
@@ -90,14 +117,10 @@ export default function ModulesClient({ initialModules = [], projectId }) {
                         {m.name}
                       </h3>
                       <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                        {m.moduleId}
+                        {m.techStack || "No tech stack specified"}
                       </p>
                     </div>
                   </div>
-                  <span
-                    className={`text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${complexityColors[m.complexity] || complexityColors.Medium}`}>
-                    {m.complexity}
-                  </span>
                 </div>
 
                 <div className="space-y-2">
@@ -130,21 +153,27 @@ export default function ModulesClient({ initialModules = [], projectId }) {
                     </div>
                   )}
 
-                  {m.dependencies && m.dependencies.length > 0 && (
+                  {m.dependencyList && m.dependencyList.length > 0 && (
                     <div>
                       <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">
                         Dependencies
                       </p>
-                      <div className="flex flex-wrap gap-1">
-                        {m.dependencies.map((depId) => {
+                      <div className="flex flex-wrap gap-2">
+                        {m.dependencyList.map((dep) => {
                           const depModule = modules.find(
-                            (mod) => mod.id === depId,
+                            (mod) => mod.id === dep.id,
                           );
+                          const typeColors = {
+                            Hard: "bg-red-500 hover:bg-red-600 shadow-sm",
+                            Soft: "bg-amber-500 hover:bg-amber-600 shadow-sm",
+                            Ghost: "bg-slate-400 hover:bg-slate-500 shadow-sm",
+                          };
                           return depModule ? (
                             <span
-                              key={depId}
-                              className="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-                              {depModule.moduleId}
+                              key={dep.id}
+                              title={`${depModule.name} (${dep.type})`}
+                              className={`text-xs px-2.5 py-1 rounded text-white font-medium transition-colors cursor-help ${typeColors[dep.type] || typeColors.Hard}`}>
+                              {depModule.name}
                             </span>
                           ) : null;
                         })}
@@ -196,47 +225,62 @@ export default function ModulesClient({ initialModules = [], projectId }) {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Complexity
-            </label>
-            <select
-              value={complexity}
-              onChange={(e) => setComplexity(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>Low</option>
-              <option>Medium</option>
-              <option>High</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
               Dependencies
             </label>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {modules.map((m) => (
-                <label
-                  key={m.id}
-                  className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={deps.includes(m.id)}
-                    onChange={() => toggleDep(m.id)}
-                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-600"
-                  />
-                  <span className="text-slate-700 dark:text-slate-300">
-                    {m.name}
-                  </span>
-                </label>
-              ))}
+            <div className="space-y-2 max-h-48 overflow-y-auto border border-slate-300 dark:border-slate-600 rounded-lg p-3 bg-slate-50 dark:bg-slate-700/50">
+              {modules.length === 0 ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                  No other modules available
+                </p>
+              ) : (
+                modules.map((m) => {
+                  const isSelected = deps.some((d) => d.id === m.id);
+                  const depType =
+                    deps.find((d) => d.id === m.id)?.type || "Hard";
+
+                  return (
+                    <div
+                      key={m.id}
+                      className="flex items-center gap-2 p-2 rounded bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleDep(m.id)}
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600"
+                      />
+                      <span className="text-sm text-slate-700 dark:text-slate-300 flex-1">
+                        {m.name}
+                      </span>
+                      {isSelected && (
+                        <select
+                          value={depType}
+                          onChange={(e) => updateDepType(m.id, e.target.value)}
+                          className="px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500">
+                          <option value="Hard">Hard</option>
+                          <option value="Soft">Soft</option>
+                          <option value="Ghost">Ghost</option>
+                        </select>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+              <strong>Hard:</strong> Required dependency
+              <br />
+              <strong>Soft:</strong> Optional/recommended dependency
+              <br />
+              <strong>Ghost:</strong> Indirect/implicit dependency
+            </p>
           </div>
 
           <div className="md:col-span-2 flex gap-2">
             <button
               type="submit"
-              disabled={!name || !techStack}
+              disabled={!name || !techStack || isCreating}
               className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium transition-colors">
-              Create Module
+              {isCreating ? "Creating..." : "Create Module"}
             </button>
           </div>
         </form>

@@ -18,7 +18,7 @@
 │  │  • Sliders (1-10):                                             │  │
 │  │    - technical_complexity, stakeholder_priority                │  │
 │  │    - resource_availability, architecture_impact                │  │
-│  │    - dependency_depth, revenue_roi                             │  │
+│  │    - requirement_ambiguity, revenue_roi                             │  │
 │  │                                                                │  │
 │  │  • Numerics (0+):                                              │  │
 │  │    - new_screens, external_integrations                        │  │
@@ -74,7 +74,7 @@
 │  │    • stakeholder_priority: 5%                                  │  │
 │  │    • resource_availability: 10%                                │  │
 │  │    • architecture_impact: 15%                                  │  │
-│  │    • dependency_depth: 10%                                     │  │
+│  │    • requirement_ambiguity: 10%                                     │  │
 │  │    • revenue_roi: 5%                                           │  │
 │  │                                                                │  │
 │  │  Step 2: Numeric Score (40% weight)                            │  │
@@ -179,9 +179,9 @@
 │  │  • UPDATE target snapshot with calculated fields               │  │
 │  │  Example: Auth module, screenCount 5→7, complexityScore 5→7    │  │
 │  │                                                                │  │
-│  │  Step 4: GHOST SCOPE ESCALATION (for high dependency_depth)    │  │
+│  │  Step 4: GHOST SCOPE ESCALATION (for high requirement_ambiguity)    │  │
 │  │  ───────────────────────────────────────────────────────────  │  │
-│  │  if sliderInputs.dependency_depth > 7:                         │  │
+│  │  if sliderInputs.requirement_ambiguity > 7:                         │  │
 │  │    • SELECT from module_dependencies                           │  │
 │  │      WHERE parentModuleId = change.primaryModuleId             │  │
 │  │    • For each dependent module:                                │  │
@@ -245,7 +245,7 @@ USER INTERACTION:
 │  • stakeholder_priority: 3/10                           │
 │  • resource_availability: 6/10                          │
 │  • architecture_impact: 8/10                            │
-│  • dependency_depth: 9/10  ← HIGH!                      │
+│  • requirement_ambiguity: 9/10  ← HIGH!                      │
 │  • revenue_roi: 4/10                                    │
 │  • new_screens: 3                                       │
 │  • external_integrations: 2                             │
@@ -320,7 +320,7 @@ BASELINE PROMOTION:
 │    logicRuleCount: 8 + 0 = 8                           │
 │    complexityScore: 6 + 1 = 7                          │
 │                                                        │
-│  STEP 4: Ghost Escalation (dependency_depth: 9 > 7)   │
+│  STEP 4: Ghost Escalation (requirement_ambiguity: 9 > 7)   │
 │  • Find dependents: Payment Module → Order Module     │
 │  • UPDATE Order Module snapshot (id: 48):              │
 │    complexityScore: 4 + 1 = 5  (flagged for review)  │
@@ -353,7 +353,7 @@ Why? Each baseline is a complete snapshot. We need to preserve ALL module states
 
 ### 4. Ghost Scope Escalation
 
-Why? Flags downstream impact without modifying core metrics. Allows PMsware of hidden risks when dependency_depth is high.
+Why? Flags downstream impact without modifying core metrics. Allows PMsware of hidden risks when requirement_ambiguity is high.
 
 ### 5. Separate `submitChange()` Wrapper
 

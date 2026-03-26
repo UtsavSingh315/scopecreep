@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, AlertCircle } from "lucide-react";
-import { getProjectChanges } from "@/lib/actions/projects";
+import { getProjectChanges, getProjectModules } from "@/lib/actions/projects";
+import ChangesTable from "./ChangesTable";
 
 function ImpactBadge({ score }) {
   if (score < 30)
@@ -46,20 +47,35 @@ export default async function ChangesPage({ params }) {
   const { user, projectId } = await params;
 
   // Fetch real changes from database (projectId is customId string like "PX123456")
-  const result = await getProjectChanges(projectId);
-  const changes = result.error ? [] : (result.data || []);
-  const error = result.error;
+  const changesResult = await getProjectChanges(projectId);
+  const changes = changesResult.error ? [] : changesResult.data || [];
+  const changesError = changesResult.error;
 
-  // Map database changes to display format with serialized dates
+  // Fetch modules to resolve dependencies
+  const modulesResult = await getProjectModules(projectId);
+  const modules = modulesResult.error ? [] : modulesResult.data || [];
+
+  // Create module map for quick lookup
+  const moduleMap = {};
+  modules.forEach((m) => {
+    moduleMap[m.id] = m;
+  });
+
+  // Map database changes to display format with serialized dates and module names
   const displayChanges = changes.map((change) => ({
     id: change.id,
     title: change.title,
     description: change.description || "",
-    type: change.changeType,
-    priority: change.priority,
     status: change.status,
-    createdAt: change.createdAt ? new Date(change.createdAt).toISOString().split("T")[0] : null,
-    impact: change.estimatedImpactScore || 0,
+    createdAt: change.createdAt
+      ? new Date(change.createdAt).toISOString().split("T")[0]
+      : null,
+    impact: change.impactScore || 0,
+    primaryModuleId: change.primaryModuleId,
+    affectedModule:
+      change.primaryModuleId && moduleMap[change.primaryModuleId]
+        ? moduleMap[change.primaryModuleId].name
+        : null,
   }));
 
   return (
@@ -83,102 +99,12 @@ export default async function ChangesPage({ params }) {
       </div>
 
       {/* Changes List */}
-      <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm bg-white dark:bg-slate-800">
-        {error && (
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-            <p className="text-sm text-red-900 dark:text-red-300">
-              Error loading changes: {error}
-            </p>
-          </div>
-        )}
-        {displayChanges.length === 0 && !error ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <AlertCircle className="w-10 h-10 text-slate-400 mb-2" />
-            <p className="text-slate-600 dark:text-slate-400">
-              No changes proposed yet
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  <th className="p-4 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    ID
-                  </th>
-                  <th className="p-4 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    Change
-                  </th>
-                  <th className="p-4 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    Type
-                  </th>
-                  <th className="p-4 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    Priority
-                  </th>
-                  <th className="p-4 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    Status
-                  </th>
-                  <th className="p-4 text-left text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    Impact
-                  </th>
-                  <th className="p-4 text-right text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                {displayChanges.map((change) => (
-                  <tr
-                    key={change.id}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                    <td className="p-4 font-mono text-sm text-slate-700 dark:text-slate-300">
-                      {change.id}
-                    </td>
-                    <td className="p-4">
-                      <div>
-                        <div className="font-medium text-slate-900 dark:text-white">
-                          {change.title}
-                        </div>
-                        <div className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                          {change.description}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4 text-sm text-slate-700 dark:text-slate-300">
-                      {change.type}
-                    </td>
-                    <td className="p-4">
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          change.priority === "High"
-                            ? "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400"
-                            : change.priority === "Medium"
-                              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
-                              : "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
-                        }`}>
-                        {change.priority}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <StatusBadge status={change.status} />
-                    </td>
-                    <td className="p-4">
-                      <ImpactBadge score={change.impact} />
-                    </td>
-                    <td className="p-4 text-right">
-                      <Link
-                        href={`/${user}/${projectId}/changes/${change.id}`}
-                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium">
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <ChangesTable
+        displayChanges={displayChanges}
+        changesError={changesError}
+        user={user}
+        projectId={projectId}
+      />
 
       {/* Info Box */}
       <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">

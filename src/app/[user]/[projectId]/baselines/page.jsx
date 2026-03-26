@@ -7,26 +7,66 @@ function BaselineCard({ baseline }) {
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="font-semibold text-slate-900 dark:text-white">
-            {baseline.name}
+            {baseline.versionLabel || "Baseline"}
           </h3>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-            Version {baseline.version || "1.0"}
+            ID: {baseline.customId}
           </p>
         </div>
-        <span className="px-2 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
-          {baseline.version || "1.0"}
+        <span
+          className={`px-2 py-1 text-xs rounded-full font-medium ${baseline.isActive ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400"}`}>
+          {baseline.isActive ? "Active" : "Inactive"}
         </span>
       </div>
-      <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-        {baseline.description || "No description"}
-      </p>
-      <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
-        <div className="flex items-center gap-1">
-          <Calendar className="w-4 h-4" />
-          {baseline.createdAt
-            ? new Date(baseline.createdAt).toLocaleDateString()
-            : "N/A"}
-        </div>
+      <div className="space-y-3 text-sm">
+        {baseline.totalEffortHours !== null &&
+          baseline.totalEffortHours !== undefined && (
+            <div className="text-slate-600 dark:text-slate-400">
+              <span className="font-medium">Effort:</span>{" "}
+              {baseline.totalEffortHours} hours
+            </div>
+          )}
+        {baseline.totalBudgetEst !== null &&
+          baseline.totalBudgetEst !== undefined && (
+            <div className="text-slate-600 dark:text-slate-400">
+              <span className="font-medium">Budget:</span> $
+              {baseline.totalBudgetEst.toLocaleString()}
+            </div>
+          )}
+
+        {/* Module Snapshots */}
+        {baseline.snapshots && baseline.snapshots.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+            <p className="font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Modules ({baseline.snapshots.length}):
+            </p>
+            <div className="space-y-1">
+              {baseline.snapshots.map((snapshot) => (
+                <div
+                  key={snapshot.id}
+                  className="text-xs text-slate-600 dark:text-slate-400 ml-2">
+                  <div className="flex items-center justify-between">
+                    <span>{snapshot.moduleName}</span>
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-500 ml-2">
+                    {snapshot.screenCount !== undefined && (
+                      <span>Screens: {snapshot.screenCount} • </span>
+                    )}
+                    {snapshot.integrationCount !== undefined && (
+                      <span>Integrations: {snapshot.integrationCount} • </span>
+                    )}
+                    {snapshot.logicRuleCount !== undefined && (
+                      <span>Rules: {snapshot.logicRuleCount} • </span>
+                    )}
+                    {snapshot.complexityScore !== undefined && (
+                      <span>Complexity: {snapshot.complexityScore}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -37,13 +77,15 @@ export default async function BaselinesPage({ params }) {
 
   // Fetch real baselines from database (projectId is customId string like "PX123456")
   const result = await getProjectBaselines(projectId);
-  const baselines = result.error ? [] : (result.data || []);
+  const baselines = result.error ? [] : result.data || [];
   const error = result.error;
 
   // Serialize baselines with date strings
   const serializedBaselines = baselines.map((b) => ({
     ...b,
-    createdAt: b.createdAt ? new Date(b.createdAt).toISOString().split("T")[0] : null,
+    createdAt: b.createdAt
+      ? new Date(b.createdAt).toISOString().split("T")[0]
+      : null,
   }));
 
   return (

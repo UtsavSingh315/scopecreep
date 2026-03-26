@@ -27,7 +27,7 @@ The final impact score is calculated using precise weighted formulas with two co
 - stakeholder_priority: 5%
 - resource_availability: 10%
 - architecture_impact: 15%
-- dependency_depth: 10%
+- requirement_ambiguity: 10%
 - revenue_roi: 5%
 - **Total: 60%**
 
@@ -71,7 +71,7 @@ The result is always capped at 100.
   - technical_complexity: 5 × 10 × 0.15 = 7.5
   - stakeholder_priority: 5 × 10 × 0.05 = 2.5
   - resource_availability: 5 × 10 × 0.1 = 5
-  - dependency_depth: 5 × 10 × 0.1 = 5
+  - requirement_ambiguity: 5 × 10 × 0.1 = 5
   - revenue_roi: 5 × 10 × 0.05 = 2.5
 - **Slider Total: 34.5 points**
 
@@ -137,18 +137,18 @@ updates.screenCount =
 
 ### Step 4: Ghost Scope Escalation (Advanced)
 
-If `dependency_depth > 7`:
+If `requirement_ambiguity > 7`:
 
 1. Query the `moduleDependencies` table for modules that depend on the primary module
 2. For each dependent module, increment its `complexityScore` by 1 in the new baseline
 3. This flags downstream impact without modifying their core metrics
 
-**Rationale:** High dependency depth means this change might trigger cascading updates in dependent modules. Bumping their complexity score signals this to future change proposals.
+**Rationale:** High requirement ambiguity means this change might trigger cascading updates in dependent modules. Bumping their complexity score signals this to future change proposals.
 
 Example:
 
 - Auth Module (changed) → Parent to Payments Module
-- If dependency_depth > 7, Payments' complexity_score gets +1 in v1.1
+- If requirement_ambiguity > 7, Payments' complexity_score gets +1 in v1.1
 - This creates a "warning snapshot" for review
 
 ### Step 5: Mark Change as Accepted

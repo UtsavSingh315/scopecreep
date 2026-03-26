@@ -6,13 +6,15 @@ export default async function ModulesPage({ params }) {
 
   // Fetch real modules from database (projectId is customId string like "PX123456")
   const result = await getProjectModules(projectId);
-  const modules = result.error ? [] : (result.data || []);
+  const modules = result.error ? [] : result.data || [];
   const error = result.error;
 
   // Serialize modules with date strings
   const serializedModules = modules.map((m) => ({
     ...m,
-    createdAt: m.createdAt ? new Date(m.createdAt).toISOString().split("T")[0] : null,
+    createdAt: m.createdAt
+      ? new Date(m.createdAt).toISOString().split("T")[0]
+      : null,
   }));
 
   return (

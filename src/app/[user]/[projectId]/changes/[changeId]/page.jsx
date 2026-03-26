@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertCircle, Loader } from "lucide-react";
+import {
+  getChangeRequestById,
+  getImpactResultsByChangeId,
+  getProjectModules,
+} from "@/lib/actions/projects";
 
 function ImpactGauge({ score = 0 }) {
   const color = score < 30 ? "#10B981" : score < 70 ? "#F59E0B" : "#FB7185";
@@ -40,43 +45,172 @@ function ImpactGauge({ score = 0 }) {
 export default function ChangeDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { changeId, projectId, user } = params;
 
-  // Mock data for the change
-  const change = {
-    id: changeId,
-    title: "Add payment gateway integration",
-    description: "Integrate Stripe for payment processing with webhook support",
-    status: "Approved",
-    impact: 72,
-    costIncrease: 12000,
-    delayDays: 10,
-    affectedModules: ["M-Auth", "M-API", "M-DB"],
-    recommendation: "Monitor & schedule strategically",
-  };
+  // Use destructuring with a check for undefined/null
+  const changeIdParam = params?.changeId;
+  const projectIdParam = params?.projectId;
+  const userParam = params?.user;
+
+  const [change, setChange] = useState(null);
+  const [impact, setImpact] = useState(null);
+  const [modules, setModules] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    async function loadChangeData() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const changeIdNum = parseInt(changeIdParam);
+        console.log(
+          "Loading change with ID:",
+          changeIdNum,
+          "from URL:",
+          changeIdParam,
+          "Project ID:",
+          projectIdParam,
+        );
+
+        // Fetch change request with project validation
+        const changeData = await getChangeRequestById(changeIdNum, projectIdParam);
+        console.log("Change data result:", changeData);
+
+        if (!changeData) {
+          throw new Error(
+            `Change request with ID ${changeIdNum} not found. The change may have been deleted or doesn't exist in this project.`,
+          );
+        }
+        setChange(changeData);
+
+        // Fetch impact results
+        const impactData = await getImpactResultsByChangeId(changeIdNum);
+        console.log("Impact data result:", impactData);
+        setImpact(impactData);
+
+        // Fetch modules for name resolution
+        const modulesData = await getProjectModules(projectIdParam);
+        console.log("Modules data result:", modulesData);
+
+        // Handle the response format - it returns {success, data} or {error}
+        const modulesList = modulesData?.data || [];
+        setModules(modulesList);
+      } catch (err) {
+        console.error("Error in loadChangeData:", err);
+        setError(err.message || "Failed to load change details");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (changeIdParam && projectIdParam) {
+      loadChangeData();
+    }
+  }, [changeIdParam, projectIdParam]);
 
   const [promoting, setPromoting] = useState(false);
+  const [implementing, setImplementing] = useState(false);
 
   async function handleAcceptAndPromote() {
     setPromoting(true);
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 1500));
-    setPromoting(false);
-    // Navigate back to changes list or impacts
-    router.push(`/${user}/${projectId}/impacts`);
+    try {
+      // Import the promoteToBaseline function from changes actions
+      const { promoteToBaseline } = await import("@/lib/actions/changes");
+
+      const changeIdNum = parseInt(changeIdParam);
+      await promoteToBaseline(changeIdNum);
+      // Reload the page to show updated status
+      window.location.reload();
+    } catch (err) {
+      console.error("Error promoting to baseline:", err);
+      alert("Failed to promote to baseline: " + err.message);
+    } finally {
+      setPromoting(false);
+    }
   }
 
-  const impactLevel =
-    change.impact < 30 ? "Low" : change.impact < 70 ? "Medium" : "High";
-  const impactColor =
-    change.impact < 30 ? "emerald" : change.impact < 70 ? "amber" : "rose";
+  async function handleImplementChange() {
+    setImplementing(true);
+    try {
+      const { implementChange } = await import("@/lib/actions/changes");
+
+      const changeIdNum = parseInt(changeIdParam);
+      await implementChange(changeIdNum);
+      // Reload the page to show updated status
+      window.location.reload();
+    } catch (err) {
+      console.error("Error implementing change:", err);
+      alert("Failed to implement change: " + err.message);
+    } finally {
+      setImplementing(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader className="w-8 h-8 animate-spin text-slate-600 mx-auto mb-2" />
+          <p className="text-slate-600">Loading change details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Link
+          href={`/${userParam}/${projectIdParam}/changes`}
+          className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Changes
+        </Link>
+        <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-red-900 dark:text-red-300">
+                Error
+              </h3>
+              <p className="text-red-800 dark:text-red-200 text-sm mt-1">
+                {error}
+              </p>
+              <p className="text-red-700 dark:text-red-300 text-xs mt-3">
+                💡 Tip: Go back to the Changes page to view all available
+                changes.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!change) {
+    return (
+      <div className="space-y-6">
+        <Link
+          href={`/${userParam}/${projectIdParam}/changes`}
+          className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Changes
+        </Link>
+        <p className="text-slate-600">Change request not found</p>
+      </div>
+    );
+  }
+
+  const primaryModule = modules?.find((m) => m.id === change.primaryModuleId);
+  const moduleName = primaryModule?.name || "Unknown Module";
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <Link
-          href={`/${user}/${projectId}/changes`}
+          href={`/${userParam}/${projectIdParam}/changes`}
           className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 mb-4">
           <ArrowLeft className="w-4 h-4" />
           Back to Changes
@@ -86,6 +220,9 @@ export default function ChangeDetailPage() {
         </h1>
         <p className="text-slate-600 dark:text-slate-400 mt-2">
           {change.description}
+        </p>
+        <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+          <strong>Module:</strong> {moduleName}
         </p>
       </div>
 
@@ -97,36 +234,61 @@ export default function ChangeDetailPage() {
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-6 text-center">
               Impact Score
             </h2>
-            <div className="flex justify-center mb-6">
-              <ImpactGauge score={change.impact} />
-            </div>
+            {impact ? (
+              <>
+                <div className="flex justify-center mb-6">
+                  <ImpactGauge score={impact.finalScore} />
+                </div>
 
-            <div
-              className={`p-3 rounded-lg bg-${impactColor}-100 dark:bg-${impactColor}-900/30 text-center mb-4`}>
-              <div
-                className={`text-sm font-semibold text-${impactColor}-700 dark:text-${impactColor}-400`}>
-                {impactLevel} Impact
-              </div>
-            </div>
+                <div
+                  className={`p-3 rounded-lg ${
+                    impact.finalScore < 30
+                      ? "bg-emerald-100 dark:bg-emerald-900/30"
+                      : impact.finalScore < 70
+                        ? "bg-amber-100 dark:bg-amber-900/30"
+                        : "bg-rose-100 dark:bg-rose-900/30"
+                  } text-center mb-4`}>
+                  <div
+                    className={`text-sm font-semibold ${
+                      impact.finalScore < 30
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : impact.finalScore < 70
+                          ? "text-amber-700 dark:text-amber-400"
+                          : "text-rose-700 dark:text-rose-400"
+                    }`}>
+                    {impact.finalScore < 30
+                      ? "Low"
+                      : impact.finalScore < 70
+                        ? "Medium"
+                        : "High"}{" "}
+                    Impact
+                  </div>
+                </div>
 
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-600 dark:text-slate-400">
-                  Estimated Cost
-                </span>
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  ${(change.costIncrease / 1000).toFixed(1)}k
-                </span>
-              </div>
-              <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-3">
-                <span className="text-slate-600 dark:text-slate-400">
-                  Schedule Delay
-                </span>
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  {change.delayDays} days
-                </span>
-              </div>
-            </div>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 dark:text-slate-400">
+                      Cost Increase
+                    </span>
+                    <span className="font-semibold text-slate-900 dark:text-white">
+                      ${(impact.predictedCostIncrease || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-3">
+                    <span className="text-slate-600 dark:text-slate-400">
+                      Predicted Delay
+                    </span>
+                    <span className="font-semibold text-slate-900 dark:text-white">
+                      {(impact.predictedDelayDays || 0).toFixed(1)} days
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-slate-600 dark:text-slate-400">
+                Impact results not available
+              </p>
+            )}
           </div>
         </div>
 
@@ -139,47 +301,111 @@ export default function ChangeDetailPage() {
             </h3>
             <div className="flex items-center gap-3">
               <CheckCircle
-                className={`w-5 h-5 text-emerald-600 dark:text-emerald-400`}
+                className={`w-5 h-5 ${
+                  change.status === "approved" || change.status === "Approved"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-amber-600 dark:text-amber-400"
+                }`}
               />
               <span className="text-sm font-medium text-slate-900 dark:text-white">
-                {change.status}
+                {change.status || "Pending"}
               </span>
             </div>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-2">
-              {change.recommendation}
-            </p>
+            {impact?.recommendationText && (
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-2">
+                {impact.recommendationText}
+              </p>
+            )}
           </div>
 
-          {/* Affected Modules */}
-          <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-              Affected Modules
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {change.affectedModules.map((mod) => (
-                <span
-                  key={mod}
-                  className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium">
-                  {mod}
-                </span>
-              ))}
-            </div>
-          </div>
+          {/* Change Scope */}
+          {change.numericDeltas &&
+            Object.values(change.numericDeltas).some((v) => v > 0) && (
+              <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+                  Change Scope
+                </h3>
+                <div className="space-y-2 text-sm">
+                  {change.numericDeltas.new_screens > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600 dark:text-slate-400">
+                        New Screens
+                      </span>
+                      <span className="font-semibold">
+                        {change.numericDeltas.new_screens}
+                      </span>
+                    </div>
+                  )}
+                  {change.numericDeltas.external_integrations > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600 dark:text-slate-400">
+                        Integrations
+                      </span>
+                      <span className="font-semibold">
+                        {change.numericDeltas.external_integrations}
+                      </span>
+                    </div>
+                  )}
+                  {change.numericDeltas.db_schema_changes > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600 dark:text-slate-400">
+                        Schema Changes
+                      </span>
+                      <span className="font-semibold">
+                        {change.numericDeltas.db_schema_changes}
+                      </span>
+                    </div>
+                  )}
+                  {change.numericDeltas.logic_rules > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600 dark:text-slate-400">
+                        Logic Rules
+                      </span>
+                      <span className="font-semibold">
+                        {change.numericDeltas.logic_rules}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
           {/* Action Button */}
           <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
-            <button
-              onClick={handleAcceptAndPromote}
-              disabled={promoting}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-medium transition-colors">
-              <CheckCircle className="w-4 h-4" />
-              {promoting
-                ? "Promoting to baseline..."
-                : "Accept & Promote to Baseline"}
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={handleAcceptAndPromote}
+                disabled={promoting || change.status === "Accepted" || change.status === "Implemented"}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors">
+                <CheckCircle className="w-4 h-4" />
+                {change.status === "Implemented"
+                  ? "Already Implemented"
+                  : change.status === "Accepted"
+                    ? "Promoted to Baseline"
+                    : promoting
+                      ? "Promoting to baseline..."
+                      : "Accept & Promote to Baseline"}
+              </button>
+
+              {change.status === "Accepted" && (
+                <button
+                  onClick={handleImplementChange}
+                  disabled={implementing}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors">
+                  <CheckCircle className="w-4 h-4" />
+                  {implementing
+                    ? "Marking as Implemented..."
+                    : "Mark as Implemented"}
+                </button>
+              )}
+            </div>
+
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-3 text-center">
-              This will create a new baseline snapshot with this change
-              integrated.
+              {change.status === "Implemented"
+                ? "This change has been implemented and applied to the baseline."
+                : change.status === "Accepted"
+                  ? "This change has been promoted to a baseline. You can now implement it."
+                  : "This will create a new baseline snapshot with this change integrated."}
             </p>
           </div>
         </div>

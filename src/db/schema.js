@@ -41,8 +41,6 @@ export const projectConfigs = pgTable("project_configs", {
   projectId: integer("project_id").references(() => projects.id, {
     onDelete: "cascade",
   }),
-  totalBudget: doublePrecision("total_budget").default(0),
-  estimatedDuration: integer("estimated_duration").default(0), // in days
   budgetTolerancePct: doublePrecision("budget_tolerance_pct").default(0.2),
   scheduleTolerancePct: doublePrecision("schedule_tolerance_pct").default(0.15),
   hourlyRate: doublePrecision("hourly_rate"),
@@ -76,6 +74,7 @@ export const baselines = pgTable("baselines", {
   versionLabel: text("version_label").notNull(), // v1.2
   totalEffortHours: doublePrecision("total_effort_hours"),
   totalBudgetEst: doublePrecision("total_budget_est"),
+  lockedAt: timestamp("locked_at"),
   isActive: boolean("is_active").default(false), // True for the CURRENT project state
 });
 
@@ -103,7 +102,10 @@ export const changeRequests = pgTable("change_requests", {
   description: text("description"),
   sliderInputs: jsonb("slider_inputs"), // Stores { complexity: 8, risk: 4, roi: 9... }
   numericDeltas: jsonb("numeric_deltas"), // Stores { screens: 2, apis: 1 }
-  status: text("status").default("Pending"), // Pending/Accepted/Rejected
+  status: text("status").default("Pending"), // Pending/Accepted/Implemented/Rejected
+  acceptedAt: timestamp("accepted_at"), // When change was promoted to baseline
+  implementedAt: timestamp("implemented_at"), // When change was actually implemented
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // 9. IMPACT RESULTS

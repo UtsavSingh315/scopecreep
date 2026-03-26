@@ -4,6 +4,20 @@ import { redirect } from "next/navigation";
 import ProjectsClient from "./ProjectsClient";
 import { getUserProjects } from "@/lib/actions/projects";
 
+// Helper function to serialize Date objects
+function serializeObject(obj) {
+  if (obj === null || obj === undefined) return obj;
+  if (obj instanceof Date) return obj.toISOString().split("T")[0];
+  if (Array.isArray(obj)) return obj.map(serializeObject);
+  if (typeof obj === "object") {
+    return Object.keys(obj).reduce((acc, key) => {
+      acc[key] = serializeObject(obj[key]);
+      return acc;
+    }, {});
+  }
+  return obj;
+}
+
 export default async function MyProjectsPage({ params }) {
   const { user } = await params;
 
@@ -27,20 +41,17 @@ export default async function MyProjectsPage({ params }) {
       error = result.error;
       console.error("Failed to fetch projects:", error);
     } else {
-      // Serialize Date objects to strings
-      projects = (result.data || []).map((p) => ({
-        ...p,
-        createdAt: p.createdAt ? new Date(p.createdAt).toISOString().split("T")[0] : null,
-      }));
+      // Serialize all Date objects to strings
+      projects = (result.data || []).map(serializeObject);
     }
   }
 
   return (
-    <ProjectsClient 
-      initialProjects={projects} 
-      user={user} 
+    <ProjectsClient
+      initialProjects={projects}
+      user={user}
       userId={userId}
-      error={error} 
+      error={error}
     />
   );
 }
