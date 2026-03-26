@@ -25,10 +25,6 @@ export default async function MyProjectsPage({ params }) {
   }
 
   return (
-    <ProjectsClient
-      initialProjects={projects}
-      user={user}
-      error={error}
-    />
+    <ProjectsClient initialProjects={projects} user={user} error={error} />
   );
 }

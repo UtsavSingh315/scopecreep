@@ -1,40 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, AlertCircle } from "lucide-react";
-
-// Mock changes data
-const mockChanges = [
-  {
-    id: "change-001",
-    title: "Add payment gateway integration",
-    description: "Integrate Stripe for payment processing",
-    type: "Feature Addition",
-    priority: "High",
-    status: "Approved",
-    createdAt: "2024-03-15",
-    impact: 72,
-  },
-  {
-    id: "change-002",
-    title: "Database schema optimization",
-    description: "Add indexes and normalize tables",
-    type: "Performance",
-    priority: "Medium",
-    status: "Pending",
-    createdAt: "2024-03-10",
-    impact: 45,
-  },
-  {
-    id: "change-003",
-    title: "Mobile responsive design",
-    description: "Implement responsive layouts for mobile devices",
-    type: "UI/UX Enhancement",
-    priority: "High",
-    status: "In Progress",
-    createdAt: "2024-03-05",
-    impact: 58,
-  },
-];
+import { getProjectChanges } from "@/lib/actions/projects";
 
 function ImpactBadge({ score }) {
   if (score < 30)
@@ -78,6 +45,23 @@ function StatusBadge({ status }) {
 export default async function ChangesPage({ params }) {
   const { user, projectId } = await params;
 
+  // Fetch real changes from database
+  const result = await getProjectChanges(parseInt(projectId));
+  const changes = result.error ? [] : (result.data || []);
+  const error = result.error;
+
+  // Map database changes to display format
+  const displayChanges = changes.map((change) => ({
+    id: change.id,
+    title: change.title,
+    description: change.description || "",
+    type: change.changeType,
+    priority: change.priority,
+    status: change.status,
+    createdAt: change.createdAt,
+    impact: change.estimatedImpactScore || 0,
+  }));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -100,7 +84,14 @@ export default async function ChangesPage({ params }) {
 
       {/* Changes List */}
       <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm bg-white dark:bg-slate-800">
-        {mockChanges.length === 0 ? (
+        {error && (
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+            <p className="text-sm text-red-900 dark:text-red-300">
+              Error loading changes: {error}
+            </p>
+          </div>
+        )}
+        {displayChanges.length === 0 && !error ? (
           <div className="flex flex-col items-center justify-center py-12">
             <AlertCircle className="w-10 h-10 text-slate-400 mb-2" />
             <p className="text-slate-600 dark:text-slate-400">
@@ -136,7 +127,7 @@ export default async function ChangesPage({ params }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                {mockChanges.map((change) => (
+                {displayChanges.map((change) => (
                   <tr
                     key={change.id}
                     className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">

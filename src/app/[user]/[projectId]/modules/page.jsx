@@ -1,78 +1,13 @@
 import ModulesClient from "./client";
+import { getProjectModules } from "@/lib/actions/projects";
 
 export default async function ModulesPage({ params }) {
-  const { user, projectId } = params;
+  const { user, projectId } = await params;
 
-  // Mock modules for proj-001
-  const mockModules = [
-    {
-      id: 1,
-      name: "Authentication & Authorization",
-      moduleId: "M-Auth",
-      techStack: "Next.js, JWT, bcrypt",
-      projectId,
-      complexity: "Medium",
-      description: "User login, registration, session management",
-      dependencies: [],
-      estimatedDays: 15,
-    },
-    {
-      id: 2,
-      name: "Payment Gateway Integration",
-      moduleId: "M-Pay",
-      techStack: "Stripe, Node.js, Webhook",
-      projectId,
-      complexity: "High",
-      description: "Payment processing, subscription management, invoicing",
-      dependencies: [1],
-      estimatedDays: 20,
-    },
-    {
-      id: 3,
-      name: "Analytics Dashboard",
-      moduleId: "M-Analytics",
-      techStack: "React, D3.js, PostgreSQL",
-      projectId,
-      complexity: "High",
-      description: "Real-time metrics, charts, export functionality",
-      dependencies: [1],
-      estimatedDays: 25,
-    },
-    {
-      id: 4,
-      name: "Data Export Engine",
-      moduleId: "M-Export",
-      techStack: "Node.js, Excel.js, Queue",
-      projectId,
-      complexity: "Medium",
-      description: "CSV, Excel, PDF export with async processing",
-      dependencies: [3],
-      estimatedDays: 12,
-    },
-    {
-      id: 5,
-      name: "Email Notification Service",
-      moduleId: "M-Email",
-      techStack: "SendGrid, Node.js, Queue",
-      projectId,
-      complexity: "Low",
-      description: "Transactional emails, templates, delivery tracking",
-      dependencies: [1],
-      estimatedDays: 8,
-    },
-  ];
-
-  let modules = mockModules;
-
-  try {
-    const db = await import("@/lib/dbClient");
-    const dbModules = await db.getModules?.(projectId);
-    if (dbModules && dbModules.length > 0) {
-      modules = dbModules;
-    }
-  } catch {
-    // Use mock data on error
-  }
+  // Fetch real modules from database
+  const result = await getProjectModules(parseInt(projectId));
+  const modules = result.error ? [] : (result.data || []);
+  const error = result.error;
 
   return (
     <div className="space-y-6">
@@ -84,6 +19,14 @@ export default async function ModulesPage({ params }) {
           Organize your system into logical modules and track dependencies
         </p>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+          <p className="text-sm text-red-900 dark:text-red-300">
+            Error loading modules: {error}
+          </p>
+        </div>
+      )}
 
       <ModulesClient
         initialModules={modules}

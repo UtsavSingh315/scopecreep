@@ -3,8 +3,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Folder } from "lucide-react";
+import { createProject } from "@/lib/actions/projects";
 
-export default function ProjectsClient({ initialProjects = [], user, error = null }) {
+export default function ProjectsClient({
+  initialProjects = [],
+  user,
+  error = null,
+}) {
   const [projects, setProjects] = useState(initialProjects);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -16,42 +21,31 @@ export default function ProjectsClient({ initialProjects = [], user, error = nul
     e.preventDefault();
     setCreating(true);
     const customId = `PX${Date.now().toString().slice(-6)}`;
-    const payload = { name, description, customId };
 
     try {
-      const res = await fetch(`/api/projects/${user}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const result = await createProject({
+        name,
+        description,
+        customId,
       });
-      if (res.ok) {
-        const created = await res.json();
-        setProjects((s) => [created, ...s]);
-        setOpen(false);
-        setName("");
-        setDescription("");
-        router.push(`/${user}/${created.customId}`);
+
+      if (result.error) {
+        console.error("Failed to create project:", result.error);
+        alert("Failed to create project. Please try again.");
         setCreating(false);
         return;
       }
-    } catch (err) {
-      // fallback to local
-    }
 
-    const local = {
-      id: String(Date.now()),
-      customId,
-      name,
-      description,
-      ownerId: user,
-      status: "active",
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setProjects((s) => [local, ...s]);
-    setOpen(false);
-    setName("");
-    setDescription("");
-    router.push(`/${user}/${local.customId}`);
+      const created = result.data;
+      setProjects((s) => [created, ...s]);
+      setOpen(false);
+      setName("");
+      setDescription("");
+      router.push(`/${user}/${created.customId}`);
+    } catch (err) {
+      console.error("Error creating project:", err);
+      alert("An error occurred. Please try again.");
+    }
     setCreating(false);
   }
 
