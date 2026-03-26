@@ -126,12 +126,16 @@ export default function SignupPage() {
             <CardContent className="flex flex-col gap-4">
               {error && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-3">
-                  <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+                  <p className="text-sm text-red-700 dark:text-red-400">
+                    {error}
+                  </p>
                 </div>
               )}
               {success && (
                 <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded p-3">
-                  <p className="text-sm text-green-700 dark:text-green-400">{success}</p>
+                  <p className="text-sm text-green-700 dark:text-green-400">
+                    {success}
+                  </p>
                 </div>
               )}
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -215,8 +219,7 @@ export default function SignupPage() {
                 <Button
                   type="submit"
                   className="w-full h-11 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                  disabled={isLoading}
-                >
+                  disabled={isLoading}>
                   {isLoading ? "Creating Account..." : "Create Account"}
                 </Button>
               </form>
@@ -226,8 +229,7 @@ export default function SignupPage() {
                 Already have an account?{" "}
                 <Link
                   href="/login"
-                  className="text-blue-600 dark:text-blue-400 font-semibold hover:underline"
-                >
+                  className="text-blue-600 dark:text-blue-400 font-semibold hover:underline">
                   Login here
                 </Link>
               </div>

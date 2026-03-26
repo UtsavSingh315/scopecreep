@@ -1,6 +1,7 @@
 # Frontend-Backend Connection Fixes - Summary
 
 ## Overview
+
 This document tracks all fixes made to connect the frontend to the backend and enable real data flow.
 
 ---
@@ -10,10 +11,12 @@ This document tracks all fixes made to connect the frontend to the backend and e
 ### 1. Authentication System - FULLY IMPLEMENTED
 
 #### Server Actions Created: `src/lib/actions/auth.js`
+
 **Status**: ✅ Complete and Working
 
 Functions implemented:
-- `registerUser(email, password, fullName, username)` 
+
+- `registerUser(email, password, fullName, username)`
   - Validates email uniqueness
   - Hashes password with bcryptjs (10 salt rounds)
   - Creates user in database
@@ -27,20 +30,22 @@ Functions implemented:
 
 - `logoutUser()`
   - Clears all session cookies
-  
 - `getCurrentUser()`
   - Retrieves current logged-in user from session
 
 **Key Details**:
+
 - Password hashing: bcryptjs v2.4.3+
 - Session management: Next.js cookies
 - Salt rounds: 10
 - Cookie expiry: 7 days
 
 #### Login Page: `src/app/(auth)/login/page.jsx`
+
 **Status**: ✅ Fully Functional
 
 Changes made:
+
 - Line 1: Added `"use client"` directive
 - Lines 3-15: Imported necessary libraries and auth action
 - Lines 18-56: Converted static form to stateful component with:
@@ -53,6 +58,7 @@ Changes made:
   - Redirect to user's projects on success
 
 **UI Improvements**:
+
 - Error messages in red alert box
 - Loading state on button
 - "Remember me" checkbox
@@ -60,9 +66,11 @@ Changes made:
 - Sign up link at bottom
 
 #### Signup Page: `src/app/(auth)/signup/page.jsx`
+
 **Status**: ✅ Fully Functional
 
 Changes made:
+
 - Line 1: Added `"use client"` directive
 - Lines 3-15: Imported necessary libraries and auth action
 - Lines 18-88: Converted static form to stateful component with:
@@ -82,6 +90,7 @@ Changes made:
   - Redirect to login on success
 
 **UI Improvements**:
+
 - Error messages in red alert box
 - Success messages in green alert box
 - Loading state on button
@@ -91,14 +100,17 @@ Changes made:
 ### 2. Next.js 16 Async Params - FIXED
 
 #### File: `src/app/[user]/[projectId]/changes/new/page.jsx`
+
 **Status**: ✅ Fixed
 
 Change:
+
 - **Before**: `const { user, projectId } = params;`
 - **After**: `const { user, projectId } = await params;`
 - **Line**: 6
 
 #### Also Fixed Previously:
+
 - `src/app/[user]/[projectId]/impacts/page.jsx` (uses React.use() for client component)
 - `src/app/[user]/[projectId]/changes/page.jsx` (made async, uses await)
 - `src/app/[user]/[projectId]/changes/[changeId]/compare/page.jsx` (made async)
@@ -107,9 +119,10 @@ Change:
 ### 3. Dependencies Installed
 
 **bcryptjs** - Password hashing library
+
 - Command: `npm install bcryptjs`
 - Version: ^2.4.3
-- Usage: 
+- Usage:
   ```javascript
   import bcryptjs from "bcryptjs";
   const { hash, compare } = bcryptjs;
@@ -134,9 +147,11 @@ Change:
 ### High Priority - Core Features Not Working
 
 #### 1. Project Dashboard - No Real Data
+
 **File**: `src/app/[user]/[projectId]/page.jsx`
 **Issue**: Lines 19-32 display hardcoded metrics
 **What to do**:
+
 - Replace hardcoded "12", "45", "23%" with database queries
 - Query `baselines` table for count
 - Query `change_requests` table for count
@@ -144,81 +159,99 @@ Change:
 - Fetch from `projects` table for project info
 
 #### 2. Changes List - No Real Data
+
 **File**: `src/app/[user]/[projectId]/changes/page.jsx`
 **Issue**: Lines 6-43 use `sampleChanges` array
 **What to do**:
+
 - Create server action `getProjectChanges(projectId)`
 - Query `change_requests` table filtered by projectId
 - Fetch `impact_results` for each change
 - Display real submitted changes
 
 #### 3. My Projects - No Real Data
+
 **File**: `src/app/[user]/my-projects/page.jsx`
 **Issue**: Lines 5, 28 use `mockProjects` and hardcoded data
 **What to do**:
+
 - Get current user from cookies
 - Query `projects` table filtered by userId
 - Display user's actual projects
 - Implement "New Project" button with creation form
 
 #### 4. Baselines List - No Real Data
+
 **File**: `src/app/[user]/[projectId]/baselines/page.jsx`
 **Issue**: Lines 15-60 use `sampleBaselines` array
 **What to do**:
+
 - Query `baselines` table filtered by projectId
 - Fetch baseline details with snapshots
 - Display version history
 - Show active baseline indicator
 
 #### 5. Impacts/Results - No Real Data
+
 **File**: `src/app/[user]/[projectId]/impacts/page.jsx`
 **Issue**: Lines 14-43 use `mockImpacts` array
 **What to do**:
+
 - Query `impact_results` table filtered by projectId
 - Fetch corresponding `change_requests` for context
 - Display real impact scores and predictions
 - Show actual cost/timeline impacts
 
 #### 6. Modules List - No Real Data
+
 **File**: `src/app/[user]/[projectId]/modules/page.jsx`
 **Issue**: Lines 7-63 use `mockModules` array
 **What to do**:
+
 - Query `modules` table filtered by projectId
 - Fetch module dependencies
 - Display actual module architecture
 - Show module metadata
 
 #### 7. Change Details Page - No Dynamic Data
+
 **File**: `src/app/[user]/[projectId]/changes/[changeId]/page.jsx`
 **Issue**: Lines 45-100 use hardcoded `change` object
 **What to do**:
+
 - Get changeId from route params
 - Query `change_requests` table for that ID
 - Fetch related `impact_results`
 - Display actual change details and scores
 
 #### 8. Change Comparison - No Database Connection
+
 **File**: `src/app/[user]/[projectId]/changes/[changeId]/compare/page.jsx`
 **Issue**: Lines 6-7 use mock change and baseline objects
 **What to do**:
+
 - Get changeId and baselineId from params
 - Query `change_requests` table
 - Query `baselines` table
 - Fetch snapshots for comparison
 
 #### 9. Baseline Details - No Dynamic Data
+
 **File**: `src/app/[user]/[projectId]/baselines/[baselineId]/page.jsx`
 **Issue**: Lines 5-40+ use hardcoded baseline object
 **What to do**:
+
 - Get baselineId from route params
 - Query `baselines` table
 - Fetch `baseline_module_snapshots` for modules
 - Display baseline specification and version history
 
 #### 10. Project Configuration - No Form Submission
+
 **File**: `src/app/[user]/[projectId]/config/page.jsx`
 **Issue**: Form has no submission handler
 **What to do**:
+
 - Create form component with state management
 - Add server action `updateProjectConfig(projectId, config)`
 - Save budget tolerance, hourly rate to database
@@ -231,6 +264,7 @@ Change:
 ### Tables Used
 
 #### `users` table
+
 ```javascript
 {
   id: primary_key,
@@ -243,6 +277,7 @@ Change:
 ```
 
 #### `projects` table
+
 ```javascript
 {
   id: primary_key,
@@ -255,6 +290,7 @@ Change:
 ```
 
 #### `baselines` table
+
 ```javascript
 {
   id: primary_key,
@@ -268,6 +304,7 @@ Change:
 ```
 
 #### `change_requests` table
+
 ```javascript
 {
   id: primary_key,
@@ -281,6 +318,7 @@ Change:
 ```
 
 #### `impact_results` table
+
 ```javascript
 {
   id: primary_key,
@@ -294,6 +332,7 @@ Change:
 ```
 
 #### `modules` table
+
 ```javascript
 {
   id: primary_key,
@@ -311,6 +350,7 @@ Change:
 ## Testing Plan
 
 ### Phase 1: Authentication ✅ READY TO TEST
+
 1. Go to `/signup`
 2. Enter user details:
    - Full Name: Utsav singh
@@ -327,6 +367,7 @@ Change:
 8. Verify: Redirected to `/utsavsingh/my-projects`
 
 ### Phase 2: Data Retrieval (Next Steps)
+
 1. Create project via UI
 2. Verify project appears in My Projects list
 3. Submit change request
@@ -335,6 +376,7 @@ Change:
 6. Test baseline promotion
 
 ### Phase 3: Full Integration
+
 1. Complete user flow from signup to change submission
 2. Verify all data persisted in database
 3. Test all pages display real data
@@ -345,6 +387,7 @@ Change:
 ## Summary
 
 ### What's Working ✅
+
 - User registration with password hashing
 - User login with session management
 - Form validation and error handling
@@ -353,6 +396,7 @@ Change:
 - Change request submission flow
 
 ### What Needs Work ⚠️
+
 - All data retrieval from database
 - 10 pages need to fetch real data instead of mock data
 - Form submission handlers for config page
@@ -360,8 +404,8 @@ Change:
 - Module listing and management
 
 ### Estimated Time to Complete
+
 - Authentication testing: ~5 mins
 - Data fetching queries: ~2-3 hours
 - Page integration testing: ~1-2 hours
 - **Total**: ~4-5 hours of development work
-

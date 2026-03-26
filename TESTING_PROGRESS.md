@@ -3,6 +3,7 @@
 ## Test User Creation
 
 ### User Details
+
 - **Full Name**: Utsav singh
 - **Username**: utsavsingh
 - **Email**: utsavsssingh@gmail.com
@@ -14,6 +15,7 @@
 ### 1. Authentication System - FIXED ✅
 
 #### Signup Page (Fixed)
+
 - **File**: `src/app/(auth)/signup/page.jsx`
 - **Status**: ✅ FIXED
 - **Changes Made**:
@@ -25,6 +27,7 @@
   - Redirects to login on success
 
 #### Login Page (Fixed)
+
 - **File**: `src/app/(auth)/login/page.jsx`
 - **Status**: ✅ FIXED
 - **Changes Made**:
@@ -37,6 +40,7 @@
   - Redirects to user's projects page
 
 #### Auth Server Actions (Created)
+
 - **File**: `src/lib/actions/auth.js`
 - **Status**: ✅ CREATED
 - **Functions Implemented**:
@@ -48,15 +52,17 @@
 ### 2. Next.js 16 Async Params - FIXED ✅
 
 #### File: `src/app/[user]/[projectId]/changes/new/page.jsx`
+
 - **Issue**: `const { user, projectId } = params;` should be `await params`
 - **Status**: ✅ FIXED
 - **Change**: Changed to `const { user, projectId } = await params;`
 
 ### 3. Encryption & Hashing
+
 - **Library**: bcryptjs
 - **Status**: ✅ INSTALLED & CONFIGURED
 - **Installation Command**: `npm install bcryptjs`
-- **Configuration**: 
+- **Configuration**:
   - Salt rounds: 10
   - Hash function: `bcryptjs.hash(password, 10)`
   - Compare function: `bcryptjs.compare(password, hashedPassword)`

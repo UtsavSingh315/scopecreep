@@ -10,7 +10,11 @@ const SALT_ROUNDS = 10;
 const { hash, compare } = bcryptjs;
 export async function registerUser(email, password, fullName, username) {
   try {
-    const db = initDb();
+    const db = await initDb();
+
+    if (!db) {
+      return { error: "Database connection failed" };
+    }
 
     // Check if user already exists
     const existingUser = await db
@@ -36,7 +40,11 @@ export async function registerUser(email, password, fullName, username) {
         username,
         createdAt: new Date(),
       })
-      .returning({ id: schema.users.id, email: schema.users.email, username: schema.users.username });
+      .returning({
+        id: schema.users.id,
+        email: schema.users.email,
+        username: schema.users.username,
+      });
 
     if (result.length === 0) {
       return { error: "Failed to create user" };
@@ -51,7 +59,11 @@ export async function registerUser(email, password, fullName, username) {
 
 export async function loginUser(email, password) {
   try {
-    const db = initDb();
+    const db = await initDb();
+
+    if (!db) {
+      return { error: "Database connection failed" };
+    }
 
     // Find user by email
     const users = await db
@@ -133,7 +145,12 @@ export async function getCurrentUser() {
       return null;
     }
 
-    const db = initDb();
+    const db = await initDb();
+
+    if (!db) {
+      return null;
+    }
+
     const users = await db
       .select()
       .from(schema.users)

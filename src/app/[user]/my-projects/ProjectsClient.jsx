@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Folder } from "lucide-react";
 
-export default function ProjectsClient({ initialProjects = [], user }) {
+export default function ProjectsClient({ initialProjects = [], user, error = null }) {
   const [projects, setProjects] = useState(initialProjects);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");

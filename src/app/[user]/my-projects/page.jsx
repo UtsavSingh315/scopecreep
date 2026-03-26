@@ -1,31 +1,34 @@
 // Server component - no "use client", safe to import server-only modules
+import { cookies } from "next/headers";
 import ProjectsClient from "./ProjectsClient";
-
-// Mock projects for development (real DB wiring via server action if needed)
-const mockProjects = [
-  {
-    id: "1",
-    customId: "PX0001",
-    name: "proj-001",
-    description: "Demo project",
-    status: "active",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    customId: "PX0002",
-    name: "proj-002",
-    description: "Test project",
-    status: "inactive",
-    createdAt: "2024-02-20",
-  },
-];
+import { getUserProjects } from "@/lib/actions/projects";
 
 export default async function MyProjectsPage({ params }) {
   const { user } = params;
 
-  // Use mock data for now (can integrate dbClient for real persistence later)
-  const projects = mockProjects;
+  // Get user ID from session cookie
+  const cookieStore = await cookies();
+  const userId = cookieStore.get("userId")?.value;
 
-  return <ProjectsClient initialProjects={projects} user={user} />;
+  let projects = [];
+  let error = null;
+
+  if (userId) {
+    // Fetch real projects from database
+    const result = await getUserProjects(parseInt(userId));
+    if (result.error) {
+      error = result.error;
+      console.error("Failed to fetch projects:", error);
+    } else {
+      projects = result.data || [];
+    }
+  }
+
+  return (
+    <ProjectsClient
+      initialProjects={projects}
+      user={user}
+      error={error}
+    />
+  );
 }
