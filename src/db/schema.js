@@ -41,6 +41,8 @@ export const projectConfigs = pgTable("project_configs", {
   projectId: integer("project_id").references(() => projects.id, {
     onDelete: "cascade",
   }),
+  totalBudget: doublePrecision("total_budget").default(0),
+  estimatedDuration: integer("estimated_duration").default(0), // in days
   budgetTolerancePct: doublePrecision("budget_tolerance_pct").default(0.2),
   scheduleTolerancePct: doublePrecision("schedule_tolerance_pct").default(0.15),
   hourlyRate: doublePrecision("hourly_rate"),

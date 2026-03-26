@@ -3,50 +3,64 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Folder } from "lucide-react";
-import { createProject } from "@/lib/actions/projects";
+import { createProject as createProjectAction } from "@/lib/actions/projects";
 
 export default function ProjectsClient({
   initialProjects = [],
   user,
+  userId,
   error = null,
 }) {
   const [projects, setProjects] = useState(initialProjects);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [baselineName, setBaselineName] = useState("");
+  const [totalBudget, setTotalBudget] = useState("");
+  const [estimatedDuration, setEstimatedDuration] = useState("");
   const [isCreating, setCreating] = useState(false);
   const router = useRouter();
 
   async function createProject(e) {
     e.preventDefault();
     setCreating(true);
-    const customId = `PX${Date.now().toString().slice(-6)}`;
 
     try {
-      const result = await createProject({
+      const result = await createProjectAction(parseInt(userId), {
         name,
         description,
-        customId,
+        baselineName: baselineName || "Initial Baseline",
+        totalBudget: parseFloat(totalBudget) || 0,
+        estimatedDuration: parseInt(estimatedDuration) || 0,
       });
 
       if (result.error) {
         console.error("Failed to create project:", result.error);
-        alert("Failed to create project. Please try again.");
+        alert(`Failed to create project: ${result.error}`);
         setCreating(false);
         return;
       }
 
-      const created = result.data;
-      setProjects((s) => [created, ...s]);
-      setOpen(false);
-      setName("");
-      setDescription("");
-      router.push(`/${user}/${created.customId}`);
+      if (result.success && result.data) {
+        const created = result.data;
+        setProjects((s) => [created, ...s]);
+        setOpen(false);
+        setName("");
+        setDescription("");
+        setBaselineName("");
+        setTotalBudget("");
+        setEstimatedDuration("");
+        router.push(`/${user}/${created.customId}`);
+      } else {
+        console.error("Unexpected response:", result);
+        alert("Failed to create project. Please try again.");
+        setCreating(false);
+      }
     } catch (err) {
       console.error("Error creating project:", err);
-      alert("An error occurred. Please try again.");
+      alert(`An error occurred: ${err.message || "Please try again."}`);
+      setCreating(false);
     }
-    setCreating(false);
   }
 
   return (
@@ -116,44 +130,108 @@ export default function ProjectsClient({
 
       {/* Create Project Modal */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto">
           <form
             onSubmit={createProject}
-            className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-6 space-y-4">
+            className="relative w-full max-w-md bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-6 space-y-4 my-8">
             <div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                 Create New Project
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                Set up a new project to start tracking scope changes
+                Set up a new project with initial baseline and configuration
               </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Project Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., Mobile App Redesign"
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
+            {/* Project Details Section */}
+            <div className="space-y-4 border-b border-slate-200 dark:border-slate-700 pb-4">
+              <h4 className="font-semibold text-slate-900 dark:text-white text-sm">
+                Project Details
+              </h4>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  Project Name
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g., Mobile App Redesign"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  Description
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Brief description of the project..."
+                  rows="3"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Description
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of the project..."
-                rows="3"
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              />
+            {/* Initial Baseline Section */}
+            <div className="space-y-4 border-b border-slate-200 dark:border-slate-700 pb-4">
+              <h4 className="font-semibold text-slate-900 dark:text-white text-sm">
+                Initial Baseline
+              </h4>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  Baseline Name
+                </label>
+                <input
+                  type="text"
+                  value={baselineName}
+                  onChange={(e) => setBaselineName(e.target.value)}
+                  placeholder="e.g., v1.0 - Project Start"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Project Configuration Section */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-slate-900 dark:text-white text-sm">
+                Project Configuration
+              </h4>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                    Total Budget
+                  </label>
+                  <input
+                    type="number"
+                    value={totalBudget}
+                    onChange={(e) => setTotalBudget(e.target.value)}
+                    placeholder="0"
+                    step="1000"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                    Est. Duration (days)
+                  </label>
+                  <input
+                    type="number"
+                    value={estimatedDuration}
+                    onChange={(e) => setEstimatedDuration(e.target.value)}
+                    placeholder="0"
+                    min="1"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex gap-2 justify-end pt-2">

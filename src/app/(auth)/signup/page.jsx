@@ -20,6 +20,7 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [mobileNo, setMobileNo] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreeToTerms, setAgreeToTerms] = useState(false);
@@ -49,6 +50,14 @@ export default function SignupPage() {
       setError("Invalid email format");
       return;
     }
+    if (!mobileNo.trim()) {
+      setError("Mobile number is required");
+      return;
+    }
+    if (!/^\d{10}$/.test(mobileNo.replace(/[^\d]/g, ""))) {
+      setError("Mobile number must be 10 digits");
+      return;
+    }
     if (!password) {
       setError("Password is required");
       return;
@@ -68,7 +77,7 @@ export default function SignupPage() {
 
     setIsLoading(true);
     try {
-      const result = await registerUser(email, password, fullName, username);
+      const result = await registerUser(email, password, fullName, username, mobileNo);
 
       if (result.error) {
         setError(result.error);
@@ -176,6 +185,20 @@ export default function SignupPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-blue-200">
+                    Mobile Number
+                  </label>
+                  <Input
+                    placeholder="Enter your 10-digit mobile number"
+                    className="h-11"
+                    type="tel"
+                    value={mobileNo}
+                    onChange={(e) => setMobileNo(e.target.value.replace(/[^\d]/g, ""))}
+                    disabled={isLoading}
+                    maxLength="10"
                   />
                 </div>
                 <div className="space-y-2">

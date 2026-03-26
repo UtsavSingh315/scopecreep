@@ -8,7 +8,7 @@ import { cookies } from "next/headers";
 
 const SALT_ROUNDS = 10;
 const { hash, compare } = bcryptjs;
-export async function registerUser(email, password, fullName, username) {
+export async function registerUser(email, password, fullName, username, mobileNo) {
   try {
     const db = await initDb();
 
@@ -27,6 +27,19 @@ export async function registerUser(email, password, fullName, username) {
       return { error: "User already exists with this email" };
     }
 
+    // Check if mobile number already exists
+    if (mobileNo) {
+      const existingMobile = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.mobileNo, mobileNo))
+        .limit(1);
+
+      if (existingMobile.length > 0) {
+        return { error: "User already exists with this mobile number" };
+      }
+    }
+
     // Hash password
     const hashedPassword = await hash(password, SALT_ROUNDS);
 
@@ -38,6 +51,7 @@ export async function registerUser(email, password, fullName, username) {
         passwordHash: hashedPassword,
         fullName,
         username,
+        mobileNo: mobileNo || null,
         createdAt: new Date(),
       })
       .returning({

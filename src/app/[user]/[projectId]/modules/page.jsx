@@ -4,10 +4,16 @@ import { getProjectModules } from "@/lib/actions/projects";
 export default async function ModulesPage({ params }) {
   const { user, projectId } = await params;
 
-  // Fetch real modules from database
-  const result = await getProjectModules(parseInt(projectId));
+  // Fetch real modules from database (projectId is customId string like "PX123456")
+  const result = await getProjectModules(projectId);
   const modules = result.error ? [] : (result.data || []);
   const error = result.error;
+
+  // Serialize modules with date strings
+  const serializedModules = modules.map((m) => ({
+    ...m,
+    createdAt: m.createdAt ? new Date(m.createdAt).toISOString().split("T")[0] : null,
+  }));
 
   return (
     <div className="space-y-6">
@@ -29,7 +35,7 @@ export default async function ModulesPage({ params }) {
       )}
 
       <ModulesClient
-        initialModules={modules}
+        initialModules={serializedModules}
         projectId={projectId}
         user={user}
       />

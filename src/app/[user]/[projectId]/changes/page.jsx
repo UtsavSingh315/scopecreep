@@ -45,12 +45,12 @@ function StatusBadge({ status }) {
 export default async function ChangesPage({ params }) {
   const { user, projectId } = await params;
 
-  // Fetch real changes from database
-  const result = await getProjectChanges(parseInt(projectId));
+  // Fetch real changes from database (projectId is customId string like "PX123456")
+  const result = await getProjectChanges(projectId);
   const changes = result.error ? [] : (result.data || []);
   const error = result.error;
 
-  // Map database changes to display format
+  // Map database changes to display format with serialized dates
   const displayChanges = changes.map((change) => ({
     id: change.id,
     title: change.title,
@@ -58,7 +58,7 @@ export default async function ChangesPage({ params }) {
     type: change.changeType,
     priority: change.priority,
     status: change.status,
-    createdAt: change.createdAt,
+    createdAt: change.createdAt ? new Date(change.createdAt).toISOString().split("T")[0] : null,
     impact: change.estimatedImpactScore || 0,
   }));
 

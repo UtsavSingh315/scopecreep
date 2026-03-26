@@ -35,10 +35,16 @@ function BaselineCard({ baseline }) {
 export default async function BaselinesPage({ params }) {
   const { user, projectId } = await params;
 
-  // Fetch real baselines from database
-  const result = await getProjectBaselines(parseInt(projectId));
+  // Fetch real baselines from database (projectId is customId string like "PX123456")
+  const result = await getProjectBaselines(projectId);
   const baselines = result.error ? [] : (result.data || []);
   const error = result.error;
+
+  // Serialize baselines with date strings
+  const serializedBaselines = baselines.map((b) => ({
+    ...b,
+    createdAt: b.createdAt ? new Date(b.createdAt).toISOString().split("T")[0] : null,
+  }));
 
   return (
     <div className="space-y-6">
@@ -62,7 +68,7 @@ export default async function BaselinesPage({ params }) {
       )}
 
       {/* Baselines Grid */}
-      {baselines.length === 0 && !error ? (
+      {serializedBaselines.length === 0 && !error ? (
         <div className="flex flex-col items-center justify-center py-12 px-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
           <AlertCircle className="w-12 h-12 text-slate-400 mb-3" />
           <p className="text-slate-600 dark:text-slate-400 text-sm">
@@ -74,7 +80,7 @@ export default async function BaselinesPage({ params }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {baselines.map((baseline) => (
+          {serializedBaselines.map((baseline) => (
             <BaselineCard key={baseline.id} baseline={baseline} />
           ))}
         </div>
