@@ -476,19 +476,22 @@ export async function implementChange(changeId) {
       .where(
         and(
           eq(schema.baselineModuleSnapshots.baselineId, activeBaseline.id),
-          eq(schema.baselineModuleSnapshots.moduleId, changeRequest.primaryModuleId),
+          eq(
+            schema.baselineModuleSnapshots.moduleId,
+            changeRequest.primaryModuleId,
+          ),
         ),
       );
 
     let snapshot = snapshotResults[0];
-    
+
     // If no snapshot exists, create one with default values
     if (!snapshot) {
       console.log(
         "⚠️ Snapshot not found, creating one with defaults for module",
         changeRequest.primaryModuleId,
       );
-      
+
       const createdSnapshots = await tx
         .insert(schema.baselineModuleSnapshots)
         .values({
@@ -500,7 +503,7 @@ export async function implementChange(changeId) {
           complexityScore: 5,
         })
         .returning();
-      
+
       snapshot = createdSnapshots[0];
       console.log("✅ Default snapshot created for module:", snapshot.id);
     }

@@ -103,9 +103,10 @@ export const changeRequests = pgTable("change_requests", {
   sliderInputs: jsonb("slider_inputs"), // Stores { complexity: 8, risk: 4, roi: 9... }
   numericDeltas: jsonb("numeric_deltas"), // Stores { screens: 2, apis: 1 }
   status: text("status").default("Pending"), // Pending/Accepted/Implemented/Rejected
-  acceptedAt: timestamp("accepted_at"), // When change was promoted to baseline
-  implementedAt: timestamp("implemented_at"), // When change was actually implemented
-  createdAt: timestamp("created_at").defaultNow(),
+  // TODO: Once database migration adds these columns, uncomment them
+  // acceptedAt: timestamp("accepted_at"), // When change was promoted to baseline
+  // implementedAt: timestamp("implemented_at"), // When change was actually implemented
+  // createdAt: timestamp("created_at").defaultNow(),
 });
 
 // 9. IMPACT RESULTS
