@@ -1,7 +1,8 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
@@ -11,10 +12,81 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { registerUser } from "@/lib/actions/auth";
+import { useRouter } from "next/navigation";
 
-const page = () => {
+export default function SignupPage() {
+  const router = useRouter();
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    // Validation
+    if (!fullName.trim()) {
+      setError("Full name is required");
+      return;
+    }
+    if (!username.trim()) {
+      setError("Username is required");
+      return;
+    }
+    if (!email.trim()) {
+      setError("Email is required");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Invalid email format");
+      return;
+    }
+    if (!password) {
+      setError("Password is required");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    if (!agreeToTerms) {
+      setError("You must agree to the Terms of Service");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await registerUser(email, password, fullName, username);
+
+      if (result.error) {
+        setError(result.error);
+      } else if (result.success) {
+        setSuccess("Account created successfully! Redirecting to login...");
+        setTimeout(() => {
+          router.push("/login");
+        }, 2000);
+      }
+    } catch (err) {
+      setError(err.message || "An error occurred during signup");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex bg-linear-to-br from-blue-50 via-blue-100 to-indigo-100 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950">
+    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-100 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950">
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:flex-1 items-center justify-center p-12">
         <div className="max-w-md">
@@ -52,73 +124,111 @@ const page = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-blue-200">
-                  Full Name
-                </label>
-                <Input
-                  placeholder="Enter your full name"
-                  className="h-11"
-                  type="text"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-blue-200">
-                  Username
-                </label>
-                <Input
-                  placeholder="Choose a username"
-                  className="h-11"
-                  type="text"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-blue-200">
-                  Email
-                </label>
-                <Input
-                  placeholder="Enter your email"
-                  className="h-11"
-                  type="email"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-blue-200">
-                  Password
-                </label>
-                <Input
-                  placeholder="Create a password"
-                  className="h-11"
-                  type="password"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-blue-200">
-                  Confirm Password
-                </label>
-                <Input
-                  placeholder="Confirm your password"
-                  className="h-11"
-                  type="password"
-                />
-              </div>
-              <div className="flex items-start gap-2 text-sm">
-                <input type="checkbox" className="rounded mt-1" />
-                <span className="text-slate-600 dark:text-blue-300">
-                  I agree to the Terms of Service and Privacy Policy
-                </span>
-              </div>
+              {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-3">
+                  <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+                </div>
+              )}
+              {success && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded p-3">
+                  <p className="text-sm text-green-700 dark:text-green-400">{success}</p>
+                </div>
+              )}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-blue-200">
+                    Full Name
+                  </label>
+                  <Input
+                    placeholder="Enter your full name"
+                    className="h-11"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-blue-200">
+                    Username
+                  </label>
+                  <Input
+                    placeholder="Choose a username"
+                    className="h-11"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-blue-200">
+                    Email
+                  </label>
+                  <Input
+                    placeholder="Enter your email"
+                    className="h-11"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-blue-200">
+                    Password
+                  </label>
+                  <Input
+                    placeholder="Create a password"
+                    className="h-11"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-blue-200">
+                    Confirm Password
+                  </label>
+                  <Input
+                    placeholder="Confirm your password"
+                    className="h-11"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="rounded mt-1"
+                    checked={agreeToTerms}
+                    onChange={(e) => setAgreeToTerms(e.target.checked)}
+                    disabled={isLoading}
+                  />
+                  <span className="text-slate-600 dark:text-blue-300">
+                    I agree to the Terms of Service and Privacy Policy
+                  </span>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Creating Account..." : "Create Account"}
+                </Button>
+              </form>
             </CardContent>
             <CardFooter className="flex flex-col gap-3 pt-2">
-              <Button className="w-full h-11 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">
-                Create Account
-              </Button>
               <div className="text-center text-sm text-slate-600 dark:text-blue-300">
                 Already have an account?{" "}
                 <Link
                   href="/login"
-                  className="text-blue-600 dark:text-blue-400 font-semibold hover:underline">
-                  Login
+                  className="text-blue-600 dark:text-blue-400 font-semibold hover:underline"
+                >
+                  Login here
                 </Link>
               </div>
             </CardFooter>
@@ -127,6 +237,4 @@ const page = () => {
       </div>
     </div>
   );
-};
-
-export default page;
+}

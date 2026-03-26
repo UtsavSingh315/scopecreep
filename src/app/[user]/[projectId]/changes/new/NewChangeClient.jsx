@@ -14,7 +14,8 @@ import {
 import { useRouter } from "next/navigation";
 import { submitChange } from "@/lib/actions/submit-change";
 
-const SCORING_WEIGHTS = { // This is used for client-side live score calculation only
+const SCORING_WEIGHTS = {
+  // This is used for client-side live score calculation only
   sliders: {
     technical_complexity: 0.15,
     stakeholder_priority: 0.05,
@@ -147,7 +148,8 @@ export default function NewChangeClient({
       alert(`Error: ${err.message || "Failed to submit change request"}`);
       setIsSubmitting(false);
     }
-  }  const scoreInfo = getScoreLabel(liveScore);
+  }
+  const scoreInfo = getScoreLabel(liveScore);
   const colors = getScoreColor(liveScore);
 
   const canSubmit = selectedModule && title;

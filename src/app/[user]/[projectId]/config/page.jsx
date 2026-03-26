@@ -1,7 +1,7 @@
 import React from "react";
 
-export default function ProjectConfigPage({ params }) {
-  const { projectId } = params;
+export default async function ProjectConfigPage({ params }) {
+  const { projectId } = await params;
 
   return (
     <div className="space-y-6">

@@ -75,8 +75,8 @@ function StatusBadge({ status }) {
   );
 }
 
-export default function ChangesPage({ params }) {
-  const { user, projectId } = params;
+export default async function ChangesPage({ params }) {
+  const { user, projectId } = await params;
 
   return (
     <div className="space-y-6">

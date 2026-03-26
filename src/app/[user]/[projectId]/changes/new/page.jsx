@@ -3,7 +3,7 @@ import NewChangeClient from "./NewChangeClient";
 import { ArrowLeft } from "lucide-react";
 
 export default async function NewChangePage({ params }) {
-  const { user, projectId } = params;
+  const { user, projectId } = await params;
 
   // Mock active baseline
   const activeBaseline = { id: "baseline-001", versionLabel: "v1.0" };

@@ -58,7 +58,8 @@ function calculateImpactScore(sliders, numerics) {
 
 function generateRecommendation(score) {
   if (score < 30) return "Low impact. Safe to proceed with standard QA.";
-  if (score < 70) return "Moderate impact. Requires careful review and testing.";
+  if (score < 70)
+    return "Moderate impact. Requires careful review and testing.";
   return "High impact. Critical scope increase. Recommend stakeholder review.";
 }
 
@@ -66,7 +67,10 @@ export async function submitChangeRequest(payload) {
   const conn = await initDb();
   if (!conn) throw new Error("DB not configured");
 
-  const impactCalculation = calculateImpactScore(payload.sliders, payload.numerics);
+  const impactCalculation = calculateImpactScore(
+    payload.sliders,
+    payload.numerics,
+  );
 
   return await conn.transaction(async (tx) => {
     const customId = `CX${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 900 + 100)}`;
@@ -74,8 +78,12 @@ export async function submitChangeRequest(payload) {
     const changeValues = {
       customId,
       projectId: Number(payload.projectId),
-      baselineId: payload.benchmarkBaselineId ? Number(payload.benchmarkBaselineId) : null,
-      primaryModuleId: payload.primaryModuleId ? Number(payload.primaryModuleId) : null,
+      baselineId: payload.benchmarkBaselineId
+        ? Number(payload.benchmarkBaselineId)
+        : null,
+      primaryModuleId: payload.primaryModuleId
+        ? Number(payload.primaryModuleId)
+        : null,
       title: payload.title || null,
       description: payload.description || null,
       sliderInputs: payload.sliders || null,
@@ -127,11 +135,14 @@ export async function promoteToBaseline(changeId) {
       .where(
         and(
           eq(schema.baselines.projectId, changeRequest.projectId),
-          eq(schema.baselines.isActive, true)
-        )
+          eq(schema.baselines.isActive, true),
+        ),
       );
 
-    if (!activeBaseline) throw new Error(`No active baseline for project ${changeRequest.projectId}`);
+    if (!activeBaseline)
+      throw new Error(
+        `No active baseline for project ${changeRequest.projectId}`,
+      );
 
     const versionParts = activeBaseline.versionLabel.split(".");
     versionParts[1] = String(Number(versionParts[1]) + 1);
@@ -177,22 +188,29 @@ export async function promoteToBaseline(changeId) {
 
     const numericDeltas = changeRequest.numericDeltas || {};
     const targetSnapshot = insertedSnapshots.find(
-      (s) => s.moduleId === changeRequest.primaryModuleId
+      (s) => s.moduleId === changeRequest.primaryModuleId,
     );
 
     if (targetSnapshot) {
       const updates = {};
       if (numericDeltas.new_screens !== undefined) {
-        updates.screenCount = (targetSnapshot.screenCount || 0) + Number(numericDeltas.new_screens);
+        updates.screenCount =
+          (targetSnapshot.screenCount || 0) + Number(numericDeltas.new_screens);
       }
       if (numericDeltas.external_integrations !== undefined) {
-        updates.integrationCount = (targetSnapshot.integrationCount || 0) + Number(numericDeltas.external_integrations);
+        updates.integrationCount =
+          (targetSnapshot.integrationCount || 0) +
+          Number(numericDeltas.external_integrations);
       }
       if (numericDeltas.logic_rules !== undefined) {
-        updates.logicRuleCount = (targetSnapshot.logicRuleCount || 0) + Number(numericDeltas.logic_rules);
+        updates.logicRuleCount =
+          (targetSnapshot.logicRuleCount || 0) +
+          Number(numericDeltas.logic_rules);
       }
       if (numericDeltas.db_schema_changes !== undefined) {
-        updates.complexityScore = (targetSnapshot.complexityScore || 5) + Number(numericDeltas.db_schema_changes);
+        updates.complexityScore =
+          (targetSnapshot.complexityScore || 5) +
+          Number(numericDeltas.db_schema_changes);
       }
 
       if (Object.keys(updates).length > 0) {
@@ -210,10 +228,17 @@ export async function promoteToBaseline(changeId) {
       const dependents = await tx
         .select()
         .from(schema.moduleDependencies)
-        .where(eq(schema.moduleDependencies.parentModuleId, changeRequest.primaryModuleId));
+        .where(
+          eq(
+            schema.moduleDependencies.parentModuleId,
+            changeRequest.primaryModuleId,
+          ),
+        );
 
       for (const dep of dependents) {
-        const depSnapshot = insertedSnapshots.find((s) => s.moduleId === dep.childModuleId);
+        const depSnapshot = insertedSnapshots.find(
+          (s) => s.moduleId === dep.childModuleId,
+        );
         if (depSnapshot) {
           await tx
             .update(schema.baselineModuleSnapshots)

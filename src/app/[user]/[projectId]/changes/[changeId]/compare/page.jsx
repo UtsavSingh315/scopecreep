@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-export default function ChangeComparePage({ params }) {
-  const { user, projectId, changeId } = params;
+export default async function ChangeComparePage({ params }) {
+  const { user, projectId, changeId } = await params;
 
   // placeholder mocked data
   const change = { id: changeId, score: 62, title: "Add payment gateway" };

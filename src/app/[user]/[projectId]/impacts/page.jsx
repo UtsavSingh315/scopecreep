@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, use } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -72,7 +72,7 @@ function ImpactBar({ score }) {
 }
 
 export default function ImpactsPage({ params }) {
-  const { user, projectId } = params;
+  const { user, projectId } = use(params);
   const [selectedChange, setSelectedChange] = useState(null);
 
   // Config for budget tolerance
