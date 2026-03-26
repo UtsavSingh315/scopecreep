@@ -76,7 +76,6 @@ export const baselines = pgTable("baselines", {
   versionLabel: text("version_label").notNull(), // v1.2
   totalEffortHours: doublePrecision("total_effort_hours"),
   totalBudgetEst: doublePrecision("total_budget_est"),
-  lockedAt: timestamp("locked_at").defaultNow(),
   isActive: boolean("is_active").default(false), // True for the CURRENT project state
 });
 
