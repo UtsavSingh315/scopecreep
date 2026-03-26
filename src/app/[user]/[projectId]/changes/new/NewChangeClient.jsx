@@ -9,10 +9,12 @@ import {
   AlertTriangle,
   CheckCircle,
   TrendingUp,
+  Loader,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { submitChange } from "@/lib/actions/submit-change";
 
-const SCORING_WEIGHTS = {
+const SCORING_WEIGHTS = { // This is used for client-side live score calculation only
   sliders: {
     technical_complexity: 0.15,
     stakeholder_priority: 0.05,
@@ -122,18 +124,30 @@ export default function NewChangeClient({
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      // Call server action to submit change request
+      const result = await submitChange({
+        projectId,
+        primaryModuleId: selectedModule,
+        benchmarkBaselineId: activeBaseline?.id,
+        sliders,
+        numerics,
+        title,
+        description,
+      });
 
-    // TODO: Call server action to save change
-    // const result = await submitChangeRequest({ ... });
-
-    setIsSubmitting(false);
-    // For now, redirect to impacts
-    router.push(`/${user}/${projectId}/impacts`);
-  }
-
-  const scoreInfo = getScoreLabel(liveScore);
+      if (result?.changeRequest?.id) {
+        // Success - redirect to impacts page to show results
+        router.push(`/${user}/${projectId}/impacts`);
+      } else {
+        throw new Error("Failed to submit change request");
+      }
+    } catch (err) {
+      console.error("Error submitting change:", err);
+      alert(`Error: ${err.message || "Failed to submit change request"}`);
+      setIsSubmitting(false);
+    }
+  }  const scoreInfo = getScoreLabel(liveScore);
   const colors = getScoreColor(liveScore);
 
   const canSubmit = selectedModule && title;
@@ -390,8 +404,17 @@ export default function NewChangeClient({
                     ? "bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed"
                     : "bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl"
                 }`}>
-                <TrendingUp className="w-4 h-4" />
-                {isSubmitting ? "Analyzing..." : "Analyze Impact"}
+                {isSubmitting ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="w-4 h-4" />
+                    Submit Change
+                  </>
+                )}
               </button>
 
               <p className="text-xs text-slate-600 dark:text-slate-400 text-center mt-3">
