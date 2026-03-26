@@ -14,7 +14,7 @@ import Link from "next/link";
 
 const page = () => {
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-100 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950">
+    <div className="min-h-screen flex bg-linear-to-br from-blue-50 via-blue-100 to-indigo-100 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950">
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:flex-1 items-center justify-center p-12">
         <div className="max-w-md">
