@@ -8,6 +8,27 @@ import { cookies } from "next/headers";
 
 const SALT_ROUNDS = 10;
 const { hash, compare } = bcryptjs;
+
+/**
+ * Register a new user in the system.
+ *
+ * @async
+ * @function registerUser
+ * @param {string} email - The user's email address (unique identifier)
+ * @param {string} password - The user's password (will be hashed with bcrypt)
+ * @param {string} fullName - The user's full name
+ * @param {string} username - The user's username (unique identifier)
+ * @param {string} [mobileNo] - Optional mobile number for the user
+ * @returns {Promise<{success: boolean, user?: Object} | {error: string}>}
+ *          Success object with user data or error message
+ * @throws Catches and returns error if database connection fails or validation fails
+ *
+ * @description
+ * - Validates that email and mobile number (if provided) don't already exist
+ * - Hashes the password using bcrypt with 10 salt rounds
+ * - Creates new user record in database
+ * - Returns user object with id, email, and username
+ */
 export async function registerUser(
   email,
   password,
@@ -77,6 +98,25 @@ export async function registerUser(
   }
 }
 
+/**
+ * Authenticate a user and establish a session via cookies.
+ *
+ * @async
+ * @function loginUser
+ * @param {string} email - The user's email address
+ * @param {string} password - The user's password (will be verified against stored hash)
+ * @returns {Promise<{success: boolean, user?: Object} | {error: string}>}
+ *          Success object with user data or error message
+ *
+ * @description
+ * - Finds user by email in the database
+ * - Verifies password using bcrypt comparison
+ * - Sets three HTTP-only cookies for session management:
+ *   * userId (secure, httpOnly) - Used to identify the user
+ *   * userEmail (secure) - Email for display purposes
+ *   * username (secure) - Username for display purposes
+ * - Cookies expire in 7 days
+ */
 export async function loginUser(email, password) {
   try {
     const db = await initDb();
@@ -149,6 +189,20 @@ export async function loginUser(email, password) {
   }
 }
 
+/**
+ * Logout the current user by clearing session cookies.
+ *
+ * @async
+ * @function logoutUser
+ * @returns {Promise<{success: boolean} | {error: string}>}
+ *          Success confirmation or error message
+ *
+ * @description
+ * Deletes all authentication-related cookies:
+ * - userId (user identifier)
+ * - userEmail (for display)
+ * - username (for display)
+ */
 export async function logoutUser() {
   try {
     const cookieStore = await cookies();
@@ -162,6 +216,20 @@ export async function logoutUser() {
   }
 }
 
+/**
+ * Retrieve the currently authenticated user from session cookie.
+ *
+ * @async
+ * @function getCurrentUser
+ * @returns {Promise<Object|null>}
+ *          User object if authenticated, null otherwise
+ *
+ * @description
+ * - Reads the userId from cookies
+ * - If not present, returns null (user not authenticated)
+ * - Queries database for complete user record by userId
+ * - Returns full user object or null if not found
+ */
 export async function getCurrentUser() {
   try {
     const cookieStore = await cookies();

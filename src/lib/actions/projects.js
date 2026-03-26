@@ -5,7 +5,17 @@ import * as schema from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 
 /**
- * Get user by username
+ * Get user details by username.
+ *
+ * @async
+ * @function getUserByUsername
+ * @param {string} username - The username to look up
+ * @returns {Promise<{success: boolean, data?: Object} | {error: string}>}
+ *          User object with id, fullName, username, email, role, isActive
+ *
+ * @description
+ * Retrieves user profile information from the database by username.
+ * Only returns specific fields for privacy and performance.
  */
 export async function getUserByUsername(username) {
   try {
@@ -31,6 +41,20 @@ export async function getUserByUsername(username) {
   }
 }
 
+/**
+ * Generate the next sequential custom ID for a project.
+ *
+ * @async
+ * @function getNextProjectCustomId
+ * @param {number} userId - The owner's user ID
+ * @returns {Promise<string>} Next custom ID in format "PX000100", "PX000101", etc.
+ *
+ * @description
+ * - Fetches all projects for the user
+ * - Extracts numeric part from each customId (e.g., "PX000100" -> 100)
+ * - Increments the max number and returns formatted string
+ * - Fallback: generates random ID if database operation fails
+ */
 // Helper function to get next sequential custom ID for projects
 async function getNextProjectCustomId(userId) {
   try {
@@ -53,6 +77,20 @@ async function getNextProjectCustomId(userId) {
   }
 }
 
+/**
+ * Generate the next sequential custom ID for a baseline.
+ *
+ * @async
+ * @function getNextBaselineCustomId
+ * @param {number} projectId - The project's numeric ID
+ * @returns {Promise<string>} Next custom ID in format "BX000100", "BX000101", etc.
+ *
+ * @description
+ * - Fetches all baselines for the project
+ * - Extracts numeric part from each customId
+ * - Increments the max number and returns formatted string
+ * - Used to generate unique baseline identifiers
+ */
 // Helper function to get next sequential custom ID for baselines
 async function getNextBaselineCustomId(projectId) {
   try {
@@ -77,6 +115,19 @@ async function getNextBaselineCustomId(projectId) {
   }
 }
 
+/**
+ * Get all projects owned by a user.
+ *
+ * @async
+ * @function getUserProjects
+ * @param {number} userId - The owner's user ID
+ * @returns {Promise<{success: boolean, data?: Array} | {error: string}>}
+ *          Array of project objects with all fields
+ *
+ * @description
+ * Retrieves all projects where the user is the owner.
+ * Returns complete project records including metadata and status.
+ */
 // Get all projects for a user
 export async function getUserProjects(userId) {
   try {
@@ -95,6 +146,19 @@ export async function getUserProjects(userId) {
   }
 }
 
+/**
+ * Get a single project by its custom ID.
+ *
+ * @async
+ * @function getProject
+ * @param {string} customId - The project's custom ID (e.g., "PX000100")
+ * @returns {Promise<{success: boolean, data?: Object} | {error: string}>}
+ *          Complete project object or null if not found
+ *
+ * @description
+ * Retrieves a specific project from the database using its custom ID.
+ * Custom IDs are unique identifiers shown in the UI (e.g., PX000100).
+ */
 // Get single project by customId (from URL)
 export async function getProject(customId) {
   try {
@@ -113,6 +177,18 @@ export async function getProject(customId) {
   }
 }
 
+/**
+ * Get the numeric database ID for a project by its custom ID.
+ *
+ * @async
+ * @function getProjectIdByCustomId
+ * @param {string} customId - The project's custom ID (e.g., "PX000100")
+ * @returns {Promise<number|null>} The numeric database ID or null if not found
+ *
+ * @description
+ * Helper function to convert custom IDs (user-facing) to numeric IDs (database IDs).
+ * Used internally when custom ID is known but database ID is needed for queries.
+ */
 // Get project ID by customId (helper function)
 async function getProjectIdByCustomId(customId) {
   try {
@@ -755,7 +831,7 @@ export async function getChangeRequestById(changeId, projectCustomId = null) {
       "Type:",
       typeof numericChangeId,
     );
-    
+
     // Select only columns that actually exist in the database
     const result = await db
       .select({
@@ -774,13 +850,18 @@ export async function getChangeRequestById(changeId, projectCustomId = null) {
       .where(eq(schema.changeRequests.id, numericChangeId))
       .limit(1);
 
-    console.log("Change request query result for ID", numericChangeId, ":", result);
-    
+    console.log(
+      "Change request query result for ID",
+      numericChangeId,
+      ":",
+      result,
+    );
+
     if (result.length === 0) {
       console.warn(`No change request found with ID ${numericChangeId}`);
       return null;
     }
-    
+
     // If we need to validate it's in the right project
     if (projectCustomId && result[0].projectId) {
       const project = await db
@@ -788,13 +869,15 @@ export async function getChangeRequestById(changeId, projectCustomId = null) {
         .from(schema.projects)
         .where(eq(schema.projects.customId, projectCustomId))
         .limit(1);
-      
+
       if (project.length === 0 || project[0].id !== result[0].projectId) {
-        console.warn(`Change ${numericChangeId} doesn't belong to project ${projectCustomId}`);
+        console.warn(
+          `Change ${numericChangeId} doesn't belong to project ${projectCustomId}`,
+        );
         return null;
       }
     }
-    
+
     return result[0];
   } catch (error) {
     console.error("Error fetching change request:", error);
@@ -921,10 +1004,14 @@ export async function getProjectScopeCreep(customId) {
       }
     }
 
-    const budgetOverrun = (acceptedCostIncrease / (baseline.totalBudgetEst || 1)) * 100;
-    const scheduleOverrun = (acceptedDelayDays / ((baseline.totalEffortHours || 1) / 8)) * 100;
+    const budgetOverrun =
+      (acceptedCostIncrease / (baseline.totalBudgetEst || 1)) * 100;
+    const scheduleOverrun =
+      (acceptedDelayDays / ((baseline.totalEffortHours || 1) / 8)) * 100;
     const scopeCreepPct =
-      acceptedChanges.length > 0 ? (acceptedChanges.length / changes.length) * 100 : 0;
+      acceptedChanges.length > 0
+        ? (acceptedChanges.length / changes.length) * 100
+        : 0;
 
     return {
       success: true,
@@ -984,12 +1071,12 @@ export async function getDiagnosticInfo(projectCustomId) {
       projectCustomId,
       projectId,
       totalChanges: allChanges.length,
-      changes: allChanges.map(c => ({
+      changes: allChanges.map((c) => ({
         id: c.id,
         customId: c.customId,
         title: c.title,
         status: c.status,
-        projectId: c.projectId
+        projectId: c.projectId,
       })),
     };
   } catch (error) {

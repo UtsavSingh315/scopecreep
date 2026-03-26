@@ -1,9 +1,28 @@
 // impactCalculator.js
-// Implements forward-chaining rule evaluation and final MCDM decision as requested.
+/**
+ * Impact and scope creep calculation module.
+ *
+ * Implements rule-based evaluation system (forward-chaining) for detecting
+ * and scoring scope creep risk. Includes default rules and custom evaluation.
+ *
+ * @module impactCalculator
+ */
 
 const SEVERITY_POINTS = { Low: 20, Medium: 40, High: 65, Critical: 90 };
 
-// Default sample rules — in real app these would come from DB and be editable.
+/**
+ * Default set of scope creep detection rules.
+ *
+ * @constant {Array<Object>} defaultRules
+ * @description
+ * Rules evaluate change request metrics to detect scope creep signals.
+ * Each rule has:
+ * - id: Unique identifier
+ * - name: Human-readable name
+ * - conditionJson: JSON-based condition (supports and, or, gt, gte, lt, lte, eq, neq)
+ * - severity: Risk level (Low, Medium, High, Critical)
+ * - scoreWeight: Weight in final score (0-10)
+ */
 export const defaultRules = [
   {
     id: "high-effort",
@@ -35,6 +54,20 @@ export const defaultRules = [
   },
 ];
 
+/**
+ * Recursively evaluate a JSON-based condition against a context object.
+ *
+ * @function evaluateCondition
+ * @param {Object} cond - Condition object with operators and operands
+ *        Operators: and, or, gt, gte, lt, lte, eq, neq
+ * @param {Object} [context={}] - Variables available in condition (metric values)
+ * @returns {boolean} True if condition is met, false otherwise
+ *
+ * @description
+ * Supports nested boolean logic (and/or) with comparison operators.
+ * Example: { and: [{gt: ["value", 10]}, {lt: ["value", 50]}] }
+ * Context values are automatically converted to numbers for comparisons.
+ */
 // Recursive evaluator for simple JSON condition objects.
 // Supports: and, or, gt, gte, lt, lte, eq, neq
 export function evaluateCondition(cond, context = {}) {
@@ -92,6 +125,21 @@ export function evaluateCondition(cond, context = {}) {
   }
 }
 
+/**
+ * Evaluate all rules against a context and calculate risk score.
+ *
+ * @function evaluateRules
+ * @param {Array<Object>} [rules=[]] - Array of rules with conditions and severity
+ * @param {Object} [context={}] - Context object with metric values
+ * @returns {Object} Object with riskScore (0-100) and triggered rules array
+ *
+ * @description
+ * Implements forward-chaining rule evaluation:
+ * - Evaluates each rule's condition against context
+ * - Calculates points based on severity level and score weight
+ * - Returns total risk score (capped at 100) and list of triggered rules
+ * - Used to assess overall scope creep risk
+ */
 // Forward-chaining rule evaluation
 export function evaluateRules(rules = [], context = {}) {
   let riskScore = 0;
@@ -116,6 +164,21 @@ export function evaluateRules(rules = [], context = {}) {
   return { riskScore, triggered };
 }
 
+/**
+ * Derive estimated effort increase percentage from numeric and slider inputs.
+ *
+ * @function deriveEffortPercent
+ * @param {Object} [numbers={}] - Numeric metrics (newScreens, logicRules, etc.)
+ * @param {Object} [sliders={}] - Slider metrics (technicalComplexity, etc.)
+ * @returns {number} Estimated effort increase percentage (0-100)
+ *
+ * @description
+ * Heuristic calculation:
+ * - New screens: 8 points each
+ * - Logic rules: 2 points each
+ * - Technical complexity: 2 points per 1-10 scale point
+ * - Result capped at 100%
+ */
 // Heuristic functions to derive percent impacts from inputs.
 function deriveEffortPercent(numbers = {}, sliders = {}) {
   // Simple heuristic: newScreens and logicRules weighted toward effort
@@ -128,6 +191,20 @@ function deriveEffortPercent(numbers = {}, sliders = {}) {
   return ei; // 0-100
 }
 
+/**
+ * Derive estimated cost increase percentage from inputs.
+ *
+ * @function deriveCostPercent
+ * @param {Object} [numbers={}] - Numeric metrics
+ * @param {Object} [sliders={}] - Slider metrics
+ * @returns {number} Estimated cost increase percentage (0-100)
+ *
+ * @description
+ * Heuristic calculation:
+ * - External integrations: 6 points each
+ * - Database schema changes: 12 points each
+ * - Architecture impact: 2 points per 1-10 scale point
+ */
 function deriveCostPercent(numbers = {}, sliders = {}) {
   const ext = numbers.externalIntegrations || 0;
   const db = numbers.dbSchemaChanges || 0;

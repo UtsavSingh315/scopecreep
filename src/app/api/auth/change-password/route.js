@@ -4,8 +4,27 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 /**
- * Change password endpoint
- * Requires authentication and validates current password before updating
+ * POST /api/auth/change-password
+ *
+ * Change password endpoint with validation.
+ * Requires x-user-id header for authentication.
+ *
+ * @async
+ * @function POST
+ * @param {Request} request - HTTP request with JSON body
+ * @param {string} request.body.currentPassword - User's current password
+ * @param {string} request.body.newPassword - New password to set
+ * @param {string} request.headers['x-user-id'] - User ID from header (required)
+ * @returns {Response} JSON response with success status or error message
+ *
+ * @description
+ * - Validates that both passwords are provided
+ * - Verifies x-user-id header exists
+ * - Fetches user from database
+ * - Verifies current password using bcrypt
+ * - Hashes new password with bcrypt (10 salt rounds)
+ * - Updates database with new password hash
+ * - Returns 200 on success, 400/401/404/500 for various errors
  */
 export async function POST(request) {
   try {
@@ -15,7 +34,7 @@ export async function POST(request) {
     if (!currentPassword || !newPassword) {
       return Response.json(
         { success: false, error: "Current and new password are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -27,7 +46,7 @@ export async function POST(request) {
     if (!userId) {
       return Response.json(
         { success: false, error: "Unauthorized - please login first" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -35,7 +54,7 @@ export async function POST(request) {
     if (!db) {
       return Response.json(
         { success: false, error: "Database connection failed" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -49,20 +68,20 @@ export async function POST(request) {
     if (!user) {
       return Response.json(
         { success: false, error: "User not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Verify current password
     const isPasswordValid = await bcrypt.compare(
       currentPassword,
-      user.passwordHash
+      user.passwordHash,
     );
 
     if (!isPasswordValid) {
       return Response.json(
         { success: false, error: "Current password is incorrect" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -77,13 +96,13 @@ export async function POST(request) {
 
     return Response.json(
       { success: true, message: "Password changed successfully" },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     console.error("Change password error:", error);
     return Response.json(
       { success: false, error: "Failed to change password" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

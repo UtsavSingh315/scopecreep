@@ -20,6 +20,32 @@ const SCORING_WEIGHTS = {
   },
 };
 
+/**
+ * Calculate the impact score for a change request.
+ *
+ * @function calculateImpactScore
+ * @param {Object} sliders - Slider values (1-10 scale for qualitative factors)
+ *        - technical_complexity: How complex is the change technically (1-10)
+ *        - stakeholder_priority: How important to stakeholders (1-10)
+ *        - resource_availability: How many resources are available (1-10, inverse)
+ *        - architecture_impact: Impact on system architecture (1-10)
+ *        - dependency_depth: How many dependencies are affected (1-10)
+ *        - revenue_roi: Return on investment (1-10)
+ * @param {Object} numerics - Numeric values (counts/measurements)
+ *        - new_screens: Number of new UI screens
+ *        - external_integrations: Number of external systems to integrate
+ *        - db_schema_changes: Number of database schema changes
+ *        - logic_rules: Number of business logic rules affected
+ * @param {number} [dependencyCount=0] - Number of module dependencies affected
+ * @returns {Object} Score breakdown with total and individual contributions
+ *
+ * @description
+ * Calculates weighted impact score (0-1000 scale) based on multiple factors:
+ * - Each factor is weighted according to importance
+ * - Resource availability is inverse (higher = better = lower score)
+ * - Returns breakdown showing contribution of each factor
+ * - Higher score = higher impact/risk
+ */
 function calculateImpactScore(sliders, numerics, dependencyCount = 0) {
   let sliderScore = 0;
   let numericScore = 0;
@@ -68,6 +94,19 @@ function calculateImpactScore(sliders, numerics, dependencyCount = 0) {
   };
 }
 
+/**
+ * Generate a recommendation text based on impact score.
+ *
+ * @function generateRecommendation
+ * @param {number} score - Impact score (0-100)
+ * @returns {string} Recommendation message
+ *
+ * @description
+ * Provides actionable guidance based on calculated impact:
+ * - Score < 30: Low risk, standard QA sufficient
+ * - Score 30-70: Moderate risk, careful review needed
+ * - Score >= 70: High risk, extensive testing required
+ */
 function generateRecommendation(score) {
   if (score < 30) return "Low impact. Safe to proceed with standard QA.";
   if (score < 70)
@@ -75,6 +114,24 @@ function generateRecommendation(score) {
   return "High impact. Critical scope increase. Recommend stakeholder review.";
 }
 
+/**
+ * Calculate predicted cost and delay for a change request.
+ *
+ * @function calculatePredictedImpact
+ * @param {Object} sliders - Slider values with complexity, resource availability, etc.
+ * @param {Object} numerics - Numeric values with new_screens, integrations, schema changes
+ * @param {Object} [activeBaseline] - Not currently used, reserved for future
+ * @returns {Object} Object with predictedCostIncrease and predictedDelayDays
+ *
+ * @description
+ * Estimates the cost and timeline impact of changes:
+ * - New screens: ~16 hours each
+ * - External integrations: ~20 hours each
+ * - Schema changes: ~5 hours each
+ * - Logic rules: ~2 hours each
+ * - Cost based on $100/hour default rate
+ * - Delay based on complexity, dependencies, and resource availability
+ */
 function calculatePredictedImpact(sliders, numerics, activeBaseline) {
   // Calculate predicted cost increase based on numeric deltas and hourly rate
   let costIncrease = 0;
@@ -113,6 +170,30 @@ function calculatePredictedImpact(sliders, numerics, activeBaseline) {
   };
 }
 
+/**
+ * Submit a new change request with impact analysis.
+ *
+ * @async
+ * @function submitChangeRequest
+ * @param {Object} payload - Change request details
+ * @param {string} payload.projectId - Project custom ID (e.g., "PX000100")
+ * @param {number} [payload.primaryModuleId] - Primary module affected
+ * @param {number} [payload.benchmarkBaselineId] - Baseline to compare against
+ * @param {string} payload.title - Change title
+ * @param {string} payload.description - Change description
+ * @param {Object} payload.sliders - Slider values (technical complexity, priority, etc.)
+ * @param {Object} payload.numerics - Numeric values (new screens, integrations, etc.)
+ * @returns {Promise<{success: boolean, data?: Object} | {error: string}>}
+ *          Created change request object with impact results
+ *
+ * @description
+ * - Generates unique custom ID (CX prefix)
+ * - Calculates impact score and predicted cost/delay
+ * - Stores change request in database
+ * - Creates impact analysis record
+ * - Captures all baseline snapshot data at time of creation
+ * - Returns complete change object with impact analysis
+ */
 export async function submitChangeRequest(payload) {
   try {
     const conn = await initDb();
@@ -222,6 +303,21 @@ export async function submitChangeRequest(payload) {
   }
 }
 
+/**
+ * Promote a change request to baseline status.
+ *
+ * @async
+ * @function promoteToBaseline
+ * @param {number} changeId - The database ID of the change request
+ * @returns {Promise<Object>} Updated change request with status: "Accepted"
+ *
+ * @description
+ * - Fetches the change request and its impact analysis
+ * - Updates change status to "Accepted"
+ * - If no baseline exists for the project, creates one
+ * - Creates baseline module snapshots from impact data
+ * - Executes in a transaction for data consistency
+ */
 export async function promoteToBaseline(changeId) {
   const conn = await initDb();
   if (!conn) throw new Error("DB not configured");
@@ -412,8 +508,20 @@ export async function promoteToBaseline(changeId) {
 }
 
 /**
- * Mark a change as Implemented and apply metrics to the active baseline
- * This permanently applies the change's metrics to the baseline
+ * Mark a change as Implemented and apply its metrics to the active baseline.
+ *
+ * @async
+ * @function implementChange
+ * @param {number} changeId - The database ID of the change request
+ * @returns {Promise<Object>} Updated change request with status: "Implemented"
+ *
+ * @description
+ * - Fetches the change request and impact data
+ * - Updates change status to "Implemented"
+ * - Creates baseline if none exists
+ * - Creates/updates baseline module snapshots with final metrics
+ * - This is the final step that makes changes permanent in metrics
+ * - Executes in a transaction for data consistency
  */
 export async function implementChange(changeId) {
   const conn = await initDb();

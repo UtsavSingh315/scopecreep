@@ -1,6 +1,25 @@
 import { NextResponse } from "next/server";
-import db from '@/lib/dbClient';
+import db from "@/lib/dbClient";
 
+/**
+ * GET /api/projects/[user]/[projectId]/baseline-snapshots
+ *
+ * Retrieve a baseline module snapshot.
+ *
+ * @async
+ * @function GET
+ * @param {Request} request - HTTP request with query parameters
+ * @param {string} request.searchParams.baselineId - The baseline's numeric ID (required)
+ * @param {string} request.searchParams.moduleId - The module's numeric ID (required)
+ * @param {Object} params - Route parameters (contains user, projectId)
+ * @returns {Response} JSON response with baseline snapshot object
+ *
+ * @description
+ * Retrieves metrics/snapshot for a specific module within a baseline.
+ * Baseline snapshots capture module metrics at a point in time.
+ * Returns 400 if baselineId or moduleId are missing.
+ * Returns 500 on database errors.
+ */
 export async function GET(request, { params }) {
   // Query params: baselineId, moduleId
   const { searchParams } = new URL(request.url);
