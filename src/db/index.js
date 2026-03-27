@@ -36,7 +36,7 @@ export function getPool() {
   return cachedPool;
 }
 
-// --- Helper Functions ---
+// ----- Helper Functions -----
 
 export async function getActiveBaseline(projectId) {
   const conn = await initDb();
